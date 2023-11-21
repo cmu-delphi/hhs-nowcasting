@@ -1,0 +1,98 @@
+---
+title: "vis_holdout_err"
+author: "Xueda Shen, xs2"
+date: "2023-08-31"
+output: html_document
+---
+
+# Purpose
+
+Produce figure 7, 8 in paper 
+
+
+# Read data
+
+```{r}
+library(assertr)
+library(comprehenr)
+library(epidatr)
+library(epiprocess)
+library(broom)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggnewscale)
+library(vroom)
+library(simplecolors)
+library(ggpubr)
+library(eply)
+library(colorspace)
+```
+
+
+```{r}
+load("../RDS/holdout_err.RData")
+```
+
+
+# MAE in Rate
+
+```{r}
+vals = c("State-level" = "#E495A5", "Mixed Model" = "#86B875", "National Model" = "#7DB0DD")
+
+ggplot(mae_state_rate) +
+  geom_path(aes(x = backcast_lag, y = s_MAE, color = "State-level"), size = 1) +
+  geom_ribbon(aes(x = backcast_lag, ymin = s_MAE - se, ymax = s_MAE + se,
+                  fill = "State-level"), alpha = 0.4) +
+  geom_path(data = mae_mixed_rate, aes(x = backcast_lag, y = m_MAE, 
+                                       color = "Mixed Model"), size = 1) +
+  geom_ribbon(data = mae_mixed_rate,
+                aes(x = backcast_lag, ymin = m_MAE - se, ymax = m_MAE + se,
+                  fill = "Mixed Model"), alpha = 0.4) +
+  geom_path(data = mae_national_rate, aes(x = backcast_lag, y = n_MAE,
+              color = "National Model"), size = 1) +
+  geom_ribbon(data = mae_national_rate, aes(x = backcast_lag,
+        ymin = n_MAE - se, ymax = n_MAE + se, fill = "National Model"), alpha = 0.4) +
+  xlab("Backcast Lag") +
+  ylab("MAE in Rate") +
+  scale_color_manual(name = "", values = vals) +
+  scale_fill_manual(name = "", values = vals) +
+  scale_x_continuous(n.breaks = 6) +
+  theme(legend.position = "bottom") +
+  ggtitle("MAE in rate, no update period") 
+  
+
+# ggsave("mae_rate_holdout.pdf", width = 6, height = 4.5, dpi = 320)
+```
+
+
+
+```{r}
+vals = c("State-level" = "#E495A5", "Mixed Model" = "#86B875", "National Model" = "#7DB0DD")
+
+ggplot(mae_state_count) +
+  geom_path(aes(x = backcast_lag, y = s_MAE, color = "State-level"), size = 1) +
+  geom_ribbon(aes(x = backcast_lag, ymin = s_MAE - se, ymax = s_MAE + se,
+                  fill = "State-level"), alpha = 0.4) +
+  geom_path(data = mae_mixed_count, aes(x = backcast_lag, y = m_MAE, 
+                                       color = "Mixed Model"), size = 1) +
+  geom_ribbon(data = mae_mixed_count,
+                aes(x = backcast_lag, ymin = m_MAE - se, ymax = m_MAE + se,
+                  fill = "Mixed Model"), alpha = 0.4) +
+  geom_path(data = mae_national_count, aes(x = backcast_lag, y = n_MAE,
+              color = "National Model"), size = 1) +
+  geom_ribbon(data = mae_national_count, aes(x = backcast_lag,
+        ymin = n_MAE - se, ymax = n_MAE + se, fill = "National Model"), alpha = 0.4) +
+  xlab("Backcast Lag") +
+  ylab("MAE in Count") +
+  scale_color_manual(name = "", values = vals) +
+  scale_fill_manual(name = "", values = vals) +
+  scale_x_continuous(n.breaks = 6) +
+  theme(legend.position = "bottom") +
+  ggtitle("MAE in count, no update period") 
+  
+
+# ggsave("mae_count_holdout.pdf", width = 6, height = 4.5, dpi = 320)
+```
+
+

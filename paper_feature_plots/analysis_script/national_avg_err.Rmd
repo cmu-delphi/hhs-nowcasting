@@ -1,0 +1,111 @@
+---
+title: "national_avg_err"
+author: "Xueda Shen, xs2"
+date: "2023-08-23"
+output: html_document
+---
+
+# Purpose
+
+In this document we compute MAPE between $I_t^{(t + 30)}$ and $I_{t}^{(t + l)};$ $O_t^{(t + 30)}$ and $O_{t}^{(t + l)};$  where $l$ varies between 0 and 10. 
+
+
+# Read data
+
+
+```{r}
+library(assertr)
+library(comprehenr)
+library(epidatr)
+library(epiprocess)
+library(broom)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(vroom)
+library(simplecolors)
+library(ggpubr)
+library(eply)
+library(colorspace)
+```
+
+
+```{r}
+# This is 7 day averaged. Not the most raw
+in_raw = vroom("../../versioned_feature/rebuild_inpatient_raww_avg.csv") %>%
+          filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2021-12-01")) %>%
+          filter(issue_date <= as.Date("2022-02-01")) %>%
+          mutate(time_value = as.Date(time_value), issue_date = as.Date(issue_date))  %>%
+          rename(backcast_lag = lag) %>%
+          arrange(geo_value, time_value, issue_date)
+
+out_raw = vroom("../../versioned_feature/padded_outpatient_raw_avg.csv") %>%
+            filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2021-12-01")) %>%
+            filter(issue_date <= as.Date("2022-02-01")) %>%
+            mutate(time_value = as.Date(time_value), issue_date = as.Date(issue_date)) %>%
+            rename(backcast_lag = lag) 
+
+labels_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
+                    filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2021-12-01")) %>%
+                    mutate(time_value = as.Date(time_value)) %>%
+                    filter(geo_value != "vi")
+
+
+uspop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          slice(., 2:(n() - 4))
+
+
+
+
+dat = in_raw %>%
+        # Stay in burn-in set 
+        filter(time_value <= as.Date("2021-03-31")) %>%
+        inner_join(select(out_raw, geo_value, time_value, issue_date, weekly_out_ratio),
+                   by = c("geo_value", "time_value", "issue_date")) %>%
+        inner_join(select(labels_hosp, geo_value, time_value, GT),
+                   by = c("geo_value", "time_value")) %>%
+        inner_join(uspop, by = "geo_value")
+
+```
+
+
+
+```{r}
+finalized_signal = dat %>%
+  filter(issue_date == time_value + 30) %>%
+  select(geo_value, time_value, weekly_in_ratio, weekly_out_ratio) %>%
+  rename(finalized_in = weekly_in_ratio) %>%
+  rename(finalized_out = weekly_out_ratio)
+
+
+versioned_signal = dat %>% 
+  filter(backcast_lag <= 10) %>%
+  inner_join(finalized_signal, by = c("geo_value", "time_value"))
+
+
+state_error = versioned_signal %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(in_mape = mean(abs(weekly_in_ratio - finalized_in) / finalized_in, na.rm = TRUE),
+            out_mape = mean(abs(weekly_out_ratio - finalized_out) / finalized_out, na.rm = TRUE))
+```
+
+
+```{r}
+national_avg_err = state_error %>%
+  group_by(backcast_lag) %>%
+  summarise(in_MAPE = mean(in_mape),
+            in_se_MAPE = sqrt(sd(in_mape) / sqrt(50)),
+            out_MAPE = mean(out_mape),
+            out_se_MAPE = sqrt(sd(out_mape) / sqrt(50)))
+
+
+
+save(national_avg_err, file = "../RDS/national_avg_err.Rdata")
+```
+
+
+

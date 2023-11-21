@@ -1,0 +1,148 @@
+---
+title: "baseline_omicron"
+author: "Xueda Shen, xs2"
+date: "2023-09-06"
+output: html_document
+---
+
+# Purpose
+
+We compute some baselines for the omicron wave and compute the errors
+
+
+# Read data
+
+```{r}
+library(assertr)
+library(comprehenr)
+library(epidatr)
+library(epiprocess)
+library(broom)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggnewscale)
+library(vroom)
+library(simplecolors)
+library(ggpubr)
+library(eply)
+library(colorspace)
+```
+
+
+```{r}
+us_pop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
+
+
+last_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
+  filter(time_value >= as.Date("2021-11-01") & time_value <= as.Date("2021-12-01")) %>%
+  mutate(time_value = as.Date(time_value)) %>%
+  filter(geo_value != "vi") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  mutate(GT = GT / pop * 10^5)
+
+remaing_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
+  filter(time_value > as.Date("2021-12-01") & time_value <= as.Date("2023-08-01")) %>%
+  mutate(time_value = as.Date(time_value)) %>%
+  filter(geo_value != "vi") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  mutate(GT = GT / pop * 10^5) %>%
+  mutate(GT_norm_back = GT * pop / 10^5)
+```
+
+
+# Predict
+
+```{r}
+last_mean = last_hosp %>%
+  group_by(geo_value) %>%
+  summarise(avg_hosp = mean(GT))
+
+last_linear_proj = last_hosp %>%
+  filter(time_value >= as.Date("2021-11-25")) %>%
+  group_by(geo_value) %>%
+  do(model = lm(GT ~ time_value, 
+                    data = .))
+
+
+
+mean_pred = remaing_hosp %>%
+  inner_join(last_mean, by = "geo_value") %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(pred_norm_back = avg_hosp * pop / 10^5) 
+
+linear_proj_pred = remaing_hosp %>%
+  group_by(geo_value) %>%
+  nest() %>%
+  inner_join(last_linear_proj) %>%
+  do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
+  rename(linear_proj = .fitted) %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(pred_norm_back = linear_proj * pop / 10^5) %>%
+  select(-.resid)
+
+```
+
+# MAE in Rate
+
+```{r}
+mae_last_mean_rate = mean_pred %>%
+  group_by(geo_value) %>%
+  summarise(Rmae = mean(abs(GT - avg_hosp))) %>%
+  ungroup() %>%
+  summarise(rmae = mean(Rmae),
+            se = sd(Rmae, na.rm = TRUE) / sqrt(50)) %>%
+  slice(rep(1:n(), 11)) %>%
+  mutate(backcast_lag = 0:10) %>%
+  select(backcast_lag, rmae, se)
+
+mae_linear_proj_rate = linear_proj_pred %>%
+  group_by(geo_value) %>%
+  summarise(Rmae = mean(abs(GT - linear_proj))) %>%
+  ungroup() %>%
+  summarise(rmae = mean(Rmae),
+            se = sd(Rmae, na.rm = TRUE) / sqrt(50)) %>%
+  slice(rep(1:n(), 11)) %>%
+  mutate(backcast_lag = 0:10) %>%
+  select(backcast_lag, rmae, se)  
+  
+```
+
+
+# MAE in Counts
+
+```{r}
+mae_last_mean_counts = mean_pred %>%
+  group_by(geo_value) %>%
+  summarise(Cmae = mean(abs(GT_norm_back - pred_norm_back))) %>%
+  ungroup() %>%
+  summarise(cmae = mean(Cmae),
+            se = sd(Cmae, na.rm = TRUE) / sqrt(50)) %>%
+  slice(rep(1:n(), 11)) %>%
+  mutate(backcast_lag = 0:10) %>%
+  select(backcast_lag, cmae, se)
+
+mae_linear_proj_counts = linear_proj_pred %>%
+  group_by(geo_value) %>%
+  summarise(Cmae = mean(abs(GT_norm_back - pred_norm_back))) %>%
+  ungroup() %>%
+  summarise(cmae = mean(Cmae),
+            se = sd(Cmae, na.rm = TRUE) / sqrt(50)) %>%
+  slice(rep(1:n(), 11)) %>%
+  mutate(backcast_lag = 0:10) %>%
+  select(backcast_lag, cmae, se)  
+  
+```
+
+
+
+```{r}
+save(mae_last_mean_rate, mae_linear_proj_rate, mae_last_mean_counts, mae_linear_proj_counts,
+     file = "../RDS/base_err.RData")
+```
+

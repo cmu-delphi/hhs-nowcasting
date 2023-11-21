@@ -1,0 +1,161 @@
+---
+title: "new_feat_trio"
+output: html_document
+date: "2023-10-08"
+---
+
+
+# Purpose
+
+Find another way of presenting feature quality trio for both inpatient and outpatient 
+
+
+
+```{r}
+library(tidyverse)
+library(gridExtra)
+library(ggpubr)
+library(colorspace)
+
+
+# Load computed feature quality metrics
+load("../RDS/national_avail.Rdata")
+load("../RDS/national_avg_corr.Rdata")
+load("../RDS/national_avg_err.Rdata")
+```
+
+
+# Manipulations
+
+```{r}
+merged_trio = nat_avail_mat %>%
+  group_by(backcast_lag) %>%
+  inner_join(corr_national_avg, by = "backcast_lag") %>%
+  inner_join(national_avg_err, by = "backcast_lag")
+
+
+in_mean_trio = merged_trio %>%
+  select(starts_with("in")) %>%
+  select(-contains("se"))
+
+in_se_trio = merged_trio %>%
+  select(starts_with("in")) %>%
+  select(contains("se"))
+
+
+out_mean_trio = merged_trio %>%
+  select(starts_with("out")) %>%
+  select(-contains("se"))
+
+
+out_se_trio = merged_trio %>%
+  select(starts_with("out")) %>%
+  select(contains("se"))
+```
+
+
+
+# Inpatient panel
+
+
+```{r}
+
+in_mean_trio_long <- in_mean_trio %>%
+  gather(key = "variable", value = "value", -backcast_lag) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "in_missing" = "Missing",
+      "in_avg_cor" = "Correlation",
+      "in_MAPE" = "MAPE"
+    )
+)
+
+
+in_se_trio_long <- in_se_trio %>%
+  gather(key = "variable", value = "se_value", -backcast_lag) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "in_se_mis" = "Missing",
+      "in_se_cor" = "Correlation",
+      "in_se_MAPE" = "MAPE"
+    )
+)
+
+
+in_trio_long = in_mean_trio_long %>%
+  group_by(backcast_lag) %>%
+  inner_join(in_se_trio_long, by = c("backcast_lag", "variable"))
+
+in_trio_plot = ggplot(in_trio_long, aes(x = backcast_lag, y = value)) +
+  scale_x_continuous(n.breaks = 6) +
+  geom_path(color = "orange", size = 1.2) +
+  xlab("") +
+  geom_ribbon(aes(x = backcast_lag, 
+    ymin = pmax(0, value - se_value), ymax = value + se_value), alpha = 0.4, fill = "orange") +
+  facet_wrap(~variable, scales = "free_y")
+
+in_trio_plot
+```
+
+
+
+# Outpatient panel
+
+```{r}
+out_mean_trio_long <- out_mean_trio %>%
+  gather(key = "variable", value = "value", -backcast_lag) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "out_missing" = "Missing",
+      "out_avg_cor" = "Correlation",
+      "out_MAPE" = "MAPE"
+    )
+)
+
+out_se_trio_long <- out_se_trio %>%
+  gather(key = "variable", value = "se_value", -backcast_lag) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "out_se_mis" = "Missing",
+      "out_se_cor" = "Correlation",
+      "out_se_MAPE" = "MAPE"
+    )
+)
+
+
+out_trio_long = out_mean_trio_long %>%
+  group_by(backcast_lag) %>%
+  inner_join(out_se_trio_long, by = c("backcast_lag", "variable"))
+
+out_trio_plot = ggplot(out_trio_long, aes(x = backcast_lag, y = value)) +
+  scale_x_continuous(n.breaks = 6) +
+  xlab("# of Days Lagged") +
+  geom_path(color = "orange", size = 1.2) +
+  geom_ribbon(aes(x = backcast_lag, 
+    ymin = pmax(0, value - se_value), ymax = value + se_value), alpha = 0.4, fill = "orange") +
+  facet_wrap(~variable, scales = "free_y")
+
+out_trio_plot
+```
+
+
+
+# Arrange two panels
+```{r}
+# Assuming in_trio_plot and out_trio_plot are already defined
+
+# Add annotations to the plots
+in_trio_plot <- in_trio_plot + labs(title = "Inpatient")
+
+out_trio_plot <- out_trio_plot + labs(title = "Outpatient")
+
+# Arrange the plots in two rows
+trio_merged = grid.arrange(in_trio_plot, out_trio_plot, nrow = 2)
+
+# ggsave(plot = trio_merged, "new_feature_trio.pdf", dpi = 320)
+```
+

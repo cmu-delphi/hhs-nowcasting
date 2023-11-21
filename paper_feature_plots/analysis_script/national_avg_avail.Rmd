@@ -1,0 +1,108 @@
+---
+title: "national_avg_avail"
+author: "Xueda Shen, xs2"
+date: "2023-08-23"
+output: html_document
+---
+
+# Purpose
+
+Here we compute national  availability of $I_{t - l}^{(t)},$ $O_{t - l}^{(t)}$ as a function of $l$.
+
+# Read data
+
+
+```{r}
+library(assertr)
+library(comprehenr)
+library(epidatr)
+library(epiprocess)
+library(broom)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(vroom)
+library(simplecolors)
+library(ggpubr)
+library(eply)
+library(colorspace)
+```
+
+
+```{r}
+in_raw = vroom("../../versioned_feature/rebuild_inpatient_raww_avg.csv") %>%
+          filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2021-03-31")) %>%
+          filter(!geo_value %in%  c("as", "gu", "mp", "pr", "vi", "fm", "mh")) %>%
+          mutate(time_value = as.Date(time_value), issue_date = as.Date(issue_date))  %>%
+          mutate(weekly_per = 100 * weekly_in_ratio) %>%
+          rename(backcast_lag = lag) %>%
+          arrange(geo_value, time_value, issue_date)
+
+out_raw = vroom("../../versioned_feature/padded_outpatient_raw_avg.csv") %>%
+            filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2021-03-31")) %>%
+            filter(issue_date <= as.Date("2022-02-01")) %>%
+            filter(!geo_value %in%  c("as", "gu", "mp", "pr", "vi")) %>%
+            mutate(time_value = as.Date(time_value), issue_date = as.Date(issue_date)) %>%
+            rename(backcast_lag = lag) 
+
+```
+
+
+# Availibility
+
+```{r}
+lags = seq(0, 10)
+
+in_avail_state = matrix(nrow = 0, ncol = 3)
+
+for (l in lags) {
+  
+  tmp = in_raw %>% 
+          group_by(geo_value) %>%
+          filter(backcast_lag == l) %>%
+          summarise(no_obs = n()) %>%
+          mutate(backcast_lag = l) %>%
+          mutate(per = no_obs / 151) %>%
+          mutate(miss = 1 - per)
+  
+  in_avail_state = rbind(in_avail_state, tmp)
+  
+}
+
+in_avail_nat = in_avail_state %>%
+  group_by(backcast_lag) %>%
+  summarise(in_missing = mean(miss),
+            in_se_mis = sd(miss))
+
+
+out_avail_state = matrix(nrow = 0, ncol = 3)
+
+for (l in lags) {
+  
+  tmp = out_raw %>% 
+          group_by(geo_value) %>%
+          filter(backcast_lag == l) %>%
+          summarise(no_obs = n()) %>%
+          mutate(backcast_lag = l) %>%
+          mutate(per = no_obs / 151) %>%
+          mutate(miss = 1 - per)
+  
+  out_avail_state = rbind(out_avail_state, tmp)
+  
+}
+
+out_avail_nat = out_avail_state %>%
+  group_by(backcast_lag) %>%
+  summarise(out_missing = mean(miss),
+            out_se_mis = sd(miss))
+
+
+nat_avail_mat = in_avail_nat %>%
+  group_by(backcast_lag) %>%
+  inner_join(out_avail_nat, by = "backcast_lag")
+
+
+save(nat_avail_mat, file = "../RDS/national_avail.Rdata")
+
+```
+

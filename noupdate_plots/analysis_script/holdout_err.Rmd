@@ -1,0 +1,179 @@
+---
+title: "holdout_err"
+author: "Xueda Shen, xs2"
+date: "2023-08-31"
+output: html_document
+---
+
+# Purpose
+
+We compute backcast errors of all three of state, mixed and national model on the 
+holdout set. 
+
+
+
+# Read data
+
+```{r}
+library(assertr)
+library(comprehenr)
+library(epidatr)
+library(epiprocess)
+library(broom)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggnewscale)
+library(vroom)
+library(simplecolors)
+library(ggpubr)
+library(eply)
+library(colorspace)
+```
+
+
+
+```{r}
+us_pop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
+
+
+bl_before_2023 = read.csv("../../predictions/oneshot_omicron.csv") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  filter(time_value >= as.Date("2021-12-01")) %>%
+  mutate(issue_date = as.Date(issue_date),
+         time_value = as.Date(time_value)) %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+  filter(backcast_lag <= 10) %>%
+  rowwise() %>%
+  mutate(state_fit = max(0, state_fit)) %>%
+  mutate(mixed_pred = max(0, mixed_pred)) %>%
+  mutate(national_fit = max(0, national_fit)) %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(state_norm_back = state_fit * pop / 10^5) %>%
+  mutate(mixed_norm_back = mixed_pred * pop / 10^5) %>%
+  mutate(national_norm_back = national_fit * pop / 10^5) %>%
+  select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
+         GT, state_fit, mixed_pred, national_fit, GT_norm_back, state_norm_back,
+         mixed_norm_back, national_norm_back)
+
+
+bl_after_2023 = read.csv("../../predictions/oneshot_2023.csv") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  filter(time_value >= as.Date("2023-01-01")) %>%
+  mutate(issue_date = as.Date(issue_date),
+         time_value = as.Date(time_value)) %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+  filter(backcast_lag <= 10) %>%
+  rowwise() %>%
+  mutate(state_fit = max(0, state_fit)) %>%
+  mutate(mixed_pred = max(0, mixed_pred)) %>%
+  mutate(national_fit = max(0, national_fit)) %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(state_norm_back = state_fit * pop / 10^5) %>%
+  mutate(mixed_norm_back = mixed_pred * pop / 10^5) %>%
+  mutate(national_norm_back = national_fit * pop / 10^5) %>%
+  select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
+         GT, state_fit, mixed_pred, national_fit, GT_norm_back, state_norm_back,
+         mixed_norm_back, national_norm_back)
+
+
+
+bl_oneshot_preds = rbind(bl_before_2023, bl_after_2023)
+
+# bl_oneshot_preds = read.csv("../../predictions/oneshot_omicron.csv") %>%
+#   inner_join(us_pop, by = "geo_value") %>%
+#   filter(time_value >= as.Date("2021-12-01")) %>%
+#   mutate(issue_date = as.Date(issue_date),
+#          time_value = as.Date(time_value)) %>%
+#   mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+#   filter(backcast_lag <= 10) %>%
+#   rowwise() %>%
+#   mutate(state_fit = max(0, state_fit)) %>%
+#   mutate(mixed_pred = max(0, mixed_pred)) %>%
+#   mutate(national_fit = max(0, national_fit)) %>%
+#   mutate(GT_norm_back = GT * pop / 10^5) %>%
+#   mutate(state_norm_back = state_fit * pop / 10^5) %>%
+#   mutate(mixed_norm_back = mixed_pred * pop / 10^5) %>%
+#   mutate(national_norm_back = national_fit * pop / 10^5) %>%
+#   select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
+#          GT, state_fit, mixed_pred, national_fit, GT_norm_back, state_norm_back,
+#          mixed_norm_back, national_norm_back)
+
+```
+
+
+```{r}
+tmp = bl_oneshot_preds %>%
+  count(backcast_lag)
+```
+
+
+
+# MAE in Rate
+
+```{r}
+mae_state_rate = bl_oneshot_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maer = mean(abs(GT - state_fit), na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(s_MAE = mean(maer),
+            se = sd(maer) / sqrt(50))
+
+mae_mixed_rate = bl_oneshot_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maer = mean(abs(GT - mixed_pred), na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(m_MAE = mean(maer),
+            se = sd(maer) / sqrt(50))
+
+mae_national_rate = bl_oneshot_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maer = mean(abs(GT - national_fit), na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(n_MAE = mean(maer),
+            se = sd(maer) / sqrt(50))
+
+```
+
+
+# MAE counts
+
+```{r}
+mae_state_count = bl_oneshot_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maec = mean(abs(GT_norm_back - state_norm_back),
+                        na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(s_MAE = mean(maec),
+            se = sd(maec) / sqrt(50))
+
+mae_mixed_count = bl_oneshot_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maec = mean(abs(GT_norm_back - mixed_norm_back),
+                        na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(m_MAE = mean(maec),
+            se = sd(maec) / sqrt(50))
+
+mae_national_count = bl_oneshot_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maec = mean(abs(GT_norm_back - national_norm_back),
+                        na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(n_MAE = mean(maec),
+            se = sd(maec) / sqrt(50))
+
+```
+
+```{r}
+save(mae_state_rate, mae_mixed_rate, mae_national_rate,
+     mae_state_count, mae_mixed_count, mae_national_count,
+     file = "../RDS/holdout_err.RData")
+```
+
+
