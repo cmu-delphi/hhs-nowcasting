@@ -4,3 +4,4 @@ versioned_feature/rebuild_inpatient_raw_avg.csv
 versioned_feature/rebuild_outpatient_raw_avg.csv
 *.csv
 *.cs
+*.7z
