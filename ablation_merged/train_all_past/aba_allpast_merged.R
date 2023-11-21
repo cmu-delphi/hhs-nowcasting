@@ -454,8 +454,4 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
 
 
 
-
-
-## --------------------------------------------------------------------------------------------------------------------------------
-tmp = in_raw %>% filter(issue_date == as.Date("2022-03-02"))
-
+write.csv(back_2, "../../predictions/aba_allpast.csv", row.names = FALSE)
