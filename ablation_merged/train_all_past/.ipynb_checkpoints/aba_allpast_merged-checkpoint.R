@@ -1,11 +1,16 @@
-## -------------------------------------------------------------------------------------------------------------------------------------------
+## --------------------------------------------------------------------------------------------------------------------------------
+# Monthly update runs from April 1 2021 to Dec 1 2021
+# No update from Dec 2 2021 to Aug 1 2023. 
+
+
 "
-Monthly update part
+Monthly Update part
 "
 
-source("assets_tm_monthlyup/data_load_mu.R")
-source("assets_tm_monthlyup/uncon_state.R")
-source("assets_tm_monthlyup/uncon_national.R")
+source("assets_all_past_monthlyup/data_load_mu.R")
+source("assets_all_past_monthlyup/uncon_state.R")
+source("assets_all_past_monthlyup/uncon_national.R")
+
 
 gammas = 0
 alphas = signif(seq(0, 1, length.out = 51))
@@ -25,16 +30,17 @@ max_lag = 19
 state_model_coef = c()
 national_model_coef = c()
 
-
-dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
+# monthly update dump dates
+dump_dates_mu = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
                as.Date("2021-07-01"), as.Date("2021-08-01"), as.Date("2021-09-01"),
                as.Date("2021-10-01"), as.Date("2021-11-01"), as.Date("2021-12-01")) 
 
-dump_dates = dump_dates - 1
+dump_dates_mu = dump_dates_mu - 1
 
 
 
-for (window_date in dump_dates) {
+# Monthly update parts
+for (window_date in dump_dates_mu) {
   
   
   # The part where we change things
@@ -170,12 +176,13 @@ for (window_date in dump_dates) {
       select(geo_value, optimal)
     
     
-    # Stay in monthly update
+    # Filtering for the last dump date to stay in monthly update
     state_test = state_get_test_backnow_raw(test_start, version) %>%
       filter(time_value <= as.Date("2021-12-01"))
+    
+    # Filtering for the last dump date to stay in monthly update
     national_test = national_get_test_backnow_raw(test_start, version) %>%
       filter(time_value <= as.Date("2021-12-01"))
-    
     
     # If not test points at all, next date in test time
     if (nrow(state_test) == 0) {
@@ -206,12 +213,10 @@ for (window_date in dump_dates) {
     
     national_Tested = national_test %>%
       select(geo_value, time_value, issue_date, national_fit)
-
-        
+    
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
       inner_join(opt_alpha, by = "geo_value") %>%
-
       group_by(geo_value) %>%
       mutate(mixed_pred = optimal * state_fit + (1 - optimal) * national_fit) %>%
       mutate(staleness = as.numeric(time_value - window_date))
@@ -226,34 +231,26 @@ for (window_date in dump_dates) {
 }
 
 
+
+
+
 "
 No update part 
 "
 
-source("assets_tm_noup/data_load_noup.R")
-source("assets_tm_noup/uncon_state.R")
-source("assets_tm_noup/uncon_national.R")
-
+# There are some crucial differences between two hypothetical
+# Becase all reporting stops on Dec 1 2021, this allows creation  
+# of a single df for training and validation data
+# some functions are named the same, but inner constructions 
+# are different due to a consolidated training file 
+source("assets_all_past_noup/data_load_no.R")
+source("assets_all_past_noup/uncon_state.R")
+source("assets_all_past_noup/uncon_national.R")
 
 
 omi_start = as.Date("2021-11-30")
 end_date = as.Date("2023-08-01")
-gammas = 0
-alphas = signif(seq(0, 1, length.out = 51))
 
-cadence = 30
-offset = 120
-vl = 2
-
-state_model_coef = c()
-national_model_coef = c()
-
-val_frame = c()
-val_gamma = c()
-
-# Still need to iterate through all dates, with the exception of no retraining after
-# 30 days of beginning of start of omicron
-# NOTE: Still need to produce backcasts
 
 for (d in seq(omi_start + 1, end_date, by = 1)) {
   
@@ -455,9 +452,6 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
 }
 
 
-write.csv(back_2, "../../predictions/aba_noup_twomonth.csv", row.names = FALSE)
 
 
-
-
-
+write.csv(back_2, "../../predictions/aba_allpast.csv", row.names = FALSE)
