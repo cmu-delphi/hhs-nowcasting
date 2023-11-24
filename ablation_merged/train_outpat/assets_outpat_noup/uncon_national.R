@@ -76,7 +76,9 @@ national_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
   
   
   test_dat = out_raw %>%
-      select(geo_value, time_value, issue_date, weekly_out_ratio)
+      select(geo_value, time_value, issue_date, weekly_out_ratio) %>%
+      inner_join(select(versioned_hosp_tmp, geo_value, time_value, GT),
+               by = c("geo_value", "time_value")) 
   
   
   

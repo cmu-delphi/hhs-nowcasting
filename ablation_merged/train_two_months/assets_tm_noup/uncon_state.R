@@ -20,7 +20,7 @@ state_get_train_ar = function(train_end, version) {
   versioned_hosp_tmp = as_epi_df(versioned_hosp_tmp)
   versioned_hosp_tmp = versioned_hosp_tmp %>%
     group_by(geo_value) %>%
-    epi_slide(GT = mean(one_day), n = 7, align = "right")
+    epi_slide(GT = mean(one_day), before = 6)
   
   
   train_dat = in_raw %>%
@@ -83,7 +83,7 @@ state_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
   versioned_hosp_tmp = as_epi_df(versioned_hosp_tmp)
   versioned_hosp_tmp = versioned_hosp_tmp %>%
     group_by(geo_value) %>%
-    epi_slide(GT = mean(one_day), n = 7, align = "right")  
+    epi_slide(GT = mean(one_day), before = 6)  
   
   
   

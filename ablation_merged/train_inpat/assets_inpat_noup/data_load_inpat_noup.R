@@ -49,6 +49,7 @@ in_raw = vroom("../../versioned_feature/rebuild_inpatient_raw_avg.csv") %>%
 labels_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
   filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2023-08-01")) %>%
   mutate(time_value = as.Date(time_value)) %>%
+  select(-issue_date) %>%
   filter(geo_value != "vi") %>%
   inner_join(uspop, by = "geo_value") %>%
   mutate(GT = GT / pop * 10^5)
