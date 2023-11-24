@@ -29,16 +29,14 @@ uspop = covidcast::state_census %>%
 
 
 out_raw = vroom("../../versioned_feature/rebuild_outpatient_raw_avg.csv") %>%
-  filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2022-07-31")) %>%
-  filter(issue_date <= as.Date("2022-07-31")) %>%
+  filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2023-07-31")) %>%
   filter(!geo_value %in%  c("as", "gu", "mp", "pr", "vi")) %>%
   mutate(time_value = as.Date(time_value), issue_date = as.Date(issue_date)) %>%
   rename(backcast_lag = lag) 
 
 labels_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
-  filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2022-07-31")) %>%
+  filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2023-07-31")) %>%
   mutate(time_value = as.Date(time_value)) %>%
-  select(-issue_date) %>%
   filter(geo_value != "vi") %>%
   inner_join(uspop, by = "geo_value") %>%
   mutate(GT = GT / pop * 10^5)
@@ -48,7 +46,7 @@ labels_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
 # Recall that if averages are taken within a given issue date
 # Discontinuities 
 versioned_hosp = vroom("../../versioned_feature/versioned_hhs_7dav.csv") %>%
-  filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2022-07-31")) %>%
+  filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2023-07-31")) %>%
   mutate(time_value = as.Date(time_value)) %>%
   filter(geo_value != "vi") %>%
   inner_join(uspop, by = "geo_value") %>%

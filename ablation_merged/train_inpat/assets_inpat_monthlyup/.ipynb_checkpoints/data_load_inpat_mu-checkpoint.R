@@ -1,5 +1,5 @@
 "
-Scripts for loading data, ablation study: only uses outpatient features
+Scripts for loading data, ablation study: only uses inpatient features
 "
 
 
@@ -19,6 +19,10 @@ library(eply)
 library(colorspace)
 
 
+"
+All feature normalizization happens here 
+"
+
 
 uspop = covidcast::state_census %>%
   select(ABBR, POPESTIMATE2019) %>%
@@ -28,12 +32,16 @@ uspop = covidcast::state_census %>%
   slice(., 2:(n() - 4))
 
 
-out_raw = vroom("../../versioned_feature/rebuild_outpatient_raw_avg.csv") %>%
+in_raw = vroom("../../versioned_feature/rebuild_inpatient_raw_avg.csv") %>%
   filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2022-07-31")) %>%
   filter(issue_date <= as.Date("2022-07-31")) %>%
-  filter(!geo_value %in%  c("as", "gu", "mp", "pr", "vi")) %>%
-  mutate(time_value = as.Date(time_value), issue_date = as.Date(issue_date)) %>%
-  rename(backcast_lag = lag) 
+  filter(!geo_value %in%  c("as", "gu", "mp", "pr", "vi", "fm", "mh")) %>%
+  mutate(time_value = as.Date(time_value), issue_date = as.Date(issue_date))  %>%
+  mutate(weekly_per = 100 * weekly_in_ratio) %>%
+  rename(backcast_lag = lag) %>%
+  arrange(geo_value, time_value, issue_date)
+
+
 
 labels_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
   filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2022-07-31")) %>%
@@ -42,6 +50,8 @@ labels_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
   filter(geo_value != "vi") %>%
   inner_join(uspop, by = "geo_value") %>%
   mutate(GT = GT / pop * 10^5)
+
+
 
 # Load one day hosp counts, potentially of different `issue_date`
 # Then take rolling averages of different issue dates
@@ -55,8 +65,8 @@ versioned_hosp = vroom("../../versioned_feature/versioned_hhs_7dav.csv") %>%
   mutate(one_day = one_day / pop * 10^5)
 
 
-dat = out_raw %>%
-  select(geo_value, time_value, issue_date, weekly_out_ratio) %>%
+dat = in_raw %>%
   inner_join(select(labels_hosp, geo_value, time_value, GT),
              by = c("geo_value", "time_value")) %>%
   inner_join(uspop, by = "geo_value") 
+

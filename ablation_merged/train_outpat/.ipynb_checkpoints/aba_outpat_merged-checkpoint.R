@@ -1,12 +1,12 @@
 ## -------------------------------------------------------------------------------------------------------------------------------------------
 "
-Monthly update portion
+Monthly update part
 "
 
-source("assets_inpat_monthlyup/data_load_inpat_mu.R")
-source("assets_inpat_monthlyup/uncon_state.R")
-source("assets_inpat_monthlyup/uncon_national.R")
 
+source("assets_outpat_monthlyup/data_load_outpat_mu.R")
+source("assets_outpat_monthlyup/uncon_state.R")
+source("assets_outpat_monthlyup/uncon_national.R")
 
 
 gammas = signif(seq(0, 0.07, length.out = 25), 3)
@@ -132,11 +132,11 @@ for (window_date in dump_dates) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ in_5 + in_12 + in_19, 
+      do(model = lm(GT ~ out_5 + out_12 + out_19, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ in_5 + in_12 + in_19, 
+    national_selected_models = lm(GT ~ out_5 + out_12 + out_19, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
@@ -171,7 +171,7 @@ for (window_date in dump_dates) {
       select(geo_value, optimal)
     
     
-    # Stay in monthly update period 
+    
     state_test = state_get_test_backnow_raw(test_start, version) %>%
       filter(time_value <= as.Date("2021-12-01"))
     national_test = national_get_test_backnow_raw(test_start, version) %>%
@@ -207,9 +207,17 @@ for (window_date in dump_dates) {
     national_Tested = national_test %>%
       select(geo_value, time_value, issue_date, national_fit)
     
+    
+    # Book-keeping gamma for tracking effective sample size 
+    state_gamma  = state_val_gamma %>%
+      rename(state_optimal_gamma = gamma)
+    
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
       inner_join(opt_alpha, by = "geo_value") %>%
+      # Book-keep gamma for effective sample size calculaiton
+      inner_join(state_gamma, by = "geo_value") %>%
+      mutate(national_gamma = national_gamma$gamma) %>%
       group_by(geo_value) %>%
       mutate(mixed_pred = optimal * state_fit + (1 - optimal) * national_fit) %>%
       mutate(staleness = as.numeric(time_value - window_date))
@@ -224,17 +232,20 @@ for (window_date in dump_dates) {
 }
 
 
+
+
 "
 No update part
 "
 
-source("assets_inpat_noup/data_load_inpat_noup.R")
-source("assets_inpat_noup/uncon_state.R")
-source("assets_inpat_noup/uncon_national.R")
+
+source("assets_outpat_noup/data_load_outpat_noup.R")
+source("assets_outpat_noup/uncon_state.R")
+source("assets_outpat_noup/uncon_national.R")
+
 
 omi_start = as.Date("2021-11-30")
 end_date = as.Date("2023-08-01")
-gammas = signif(seq(0, 0.07, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
 
 cadence = 30
@@ -312,11 +323,11 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ in_5 + in_12 + in_19, 
+      do(model = lm(GT ~ out_5 + out_12 + out_19, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ in_5 + in_12 + in_19, 
+    national_selected_models = lm(GT ~ out_5 + out_12 + out_19, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
@@ -451,7 +462,8 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
 }
 
 
-write.csv(back_2, "../../predictions/aba_noup_inpat_merged.csv", row.names = FALSE)
+write.csv(back_2, "../../predictions/aba_outpat_merged.csv", row.names = FALSE)
+
 
 
 
