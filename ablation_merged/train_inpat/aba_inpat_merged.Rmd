@@ -475,3 +475,8 @@ write.csv(back_2, "../../predictions/aba_noup_inpat_merged.csv", row.names = FAL
 
 ```
 
+
+```{r}
+tmp = state_get_test_oneshot_impute(as.Date("2023-01-01"))
+```
+

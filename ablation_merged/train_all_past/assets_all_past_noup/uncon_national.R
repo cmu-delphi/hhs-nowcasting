@@ -507,6 +507,131 @@ national_get_test_oneshot_impute = function(date, max_lag = 19, slack = 3) {
 
 
 
+
+"
+Test time imputation by backsearch over slack number of days. 
+"
+national_get_test_oneshot_impute = function(date, max_lag = 19, slack = 3) {
+  
+  
+  
+  # Floor to first day of the test month
+  # Since we are predicting from start of month to `date`
+  first_day = floor_date(date, "month") - 30
+  # Further back to produce test time feat
+  test_start = first_day - max_lag
+  
+  toRe = c()
+  
+  # Version specifies the end date of test sets
+  version = date
+  
+  # Iterate through each date in the test set
+  # Note again there is only one `issue_date` for the test set we return 
+  i = 0
+  for (d in seq(test_start + max_lag, date, by = 1)) {
+    
+    i = i + 1
+    
+
+    # d = min(d, as.Date("2021-12-01"))
+    
+    # Need to handle situation where an entire `time_value` is missing 
+    
+    in_5 = dat %>%
+      filter(issue_date == version) %>%
+      # search no more than slack days back
+      filter(time_value >= d - 5 - slack & time_value <= d - 5) %>%
+      group_by(geo_value, issue_date) %>%
+      filter(time_value == max(time_value)) %>%
+      mutate(time_value = as.Date(d - 5, "1970-01-01"))
+    
+  
+
+    in_12 = dat %>%
+      filter(issue_date == version) %>%
+      # search no more than slack days back
+      filter(time_value >= d - 12 - slack & time_value <= d - 12) %>%
+      group_by(geo_value, issue_date) %>%
+      filter(time_value == max(time_value)) %>%
+      mutate(time_value = as.Date(d - 12, "1970-01-01"))
+    
+    in_19 = dat %>%
+      filter(issue_date == version) %>%
+      # search no more than slack days back
+      filter(time_value >= d - 19 - slack & time_value <= d - 19) %>%
+      group_by(geo_value, issue_date) %>%
+      filter(time_value == max(time_value)) %>%
+      mutate(time_value = as.Date(d - 19, "1970-01-01"))
+    
+    if (nrow(in_5) == 0 | nrow(in_12) == 0 | nrow(in_19) == 0) {
+
+      break
+
+    }
+    
+
+    in_tibble = rbind(in_5, in_12, in_19) %>%
+      select(geo_value, time_value, issue_date, weekly_in_ratio) %>%
+      group_by(geo_value, issue_date) %>%
+      arrange(time_value, by_group = TRUE)
+    
+    
+    
+    in_tibble = in_tibble %>%
+      pivot_wider(
+        names_from = time_value, values_from = weekly_in_ratio) %>%
+      mutate(time_value = as.Date(d, "1970-01-01")) %>%
+      mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
+      rename_at(vars(3:5), ~c("in_19", "in_12", "in_5")) %>%
+      select(geo_value, time_value, issue_date, in_19, in_12, in_5)
+    
+    
+    out_tibble = rbind(in_5, in_12, in_19) %>%
+      select(geo_value, time_value, issue_date, weekly_out_ratio) %>%
+      group_by(geo_value, issue_date) %>%
+      arrange(time_value, by_group = TRUE)
+    
+    
+    
+    out_tibble = out_tibble %>%
+      select(geo_value, time_value, issue_date, weekly_out_ratio) %>%
+      pivot_wider(
+        names_from = time_value, values_from = weekly_out_ratio) %>%
+      mutate(time_value = as.Date(d, "1970-01-01")) %>%
+      mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
+      rename_at(vars(3:5), ~c("out_19", "out_12", "out_5")) %>%
+      select(geo_value, time_value, issue_date, out_19, out_12, out_5)
+    
+    f_tibble = inner_join(in_tibble, out_tibble, by = c("geo_value", "time_value", "issue_date")) %>%
+      inner_join(all_hosp, by = c("geo_value", "time_value"))
+    
+    toRe = rbind(toRe, f_tibble)
+    
+    
+    
+    
+  }
+  
+  if (is.null(toRe)) {
+
+    return(NULL)
+
+  } else{
+
+  toRe = toRe %>% ungroup()
+  return(toRe)
+  
+
+  }
+
+
+
+}
+
+
+
+
 "
 Function for choosing mixing weight alpha
 "
@@ -552,3 +677,5 @@ alpha_fv = function(alphas, state_frame, national_frame, state_gamma, national_g
   return(val_frame)
 
 }
+
+

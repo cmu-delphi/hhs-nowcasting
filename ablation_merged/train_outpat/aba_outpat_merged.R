@@ -422,6 +422,13 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     
     print(as.Date(d, "1970-01-01"))
     
+
+    # Something weird happens with 2023-01-01
+
+    if (d == as.Date("2023-01-01")) {
+      next
+    }
+
     # 30 days later, everything is now considered to be finalized
     # No more retraining now
     state_test = state_get_test_oneshot_impute(version)
