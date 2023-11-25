@@ -417,6 +417,11 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     state_test = state_get_test_oneshot_impute(version)
     national_test = national_get_test_oneshot_impute(version)
     
+    # If not test points at all, next date in test time
+    if (nrow(state_test) == 0) {
+      next
+    }
+      
     
     state_test = state_test %>%
       group_by(geo_value) %>%
@@ -429,6 +434,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
       verify(nrow(.) != 0)
   
   
+
     state_Tested = state_test %>%
       do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
       rename(state_fit = .fitted) %>%

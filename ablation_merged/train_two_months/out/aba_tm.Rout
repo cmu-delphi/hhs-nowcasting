@@ -3730,14 +3730,217 @@ date (2): issue_date, time_value
 +   }
 +   
 + }
-Error in `Abort()`:
-! Either or both of `before`, `after` must be provided.
-Backtrace:
-    ▆
- 1. ├─global state_produce_fv(gammas, train_end, version)
- 2. │ └─global state_get_train_ar(train_end, version)
- 3. │   └─versioned_hosp_tmp %>% group_by(geo_value) %>% ...
- 4. └─epiprocess::epi_slide(., GT = mean(one_day), n = 7, align = "right")
- 5.   └─epiprocess:::Abort("Either or both of `before`, `after` must be provided.")
- 6.     └─rlang::abort(break_str(msg, init = "Error: "), ...)
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+[1] "2021-12-31"
+Error in state_get_test_oneshot_impute(version) : 
+  could not find function "state_get_test_oneshot_impute"
 Execution halted
