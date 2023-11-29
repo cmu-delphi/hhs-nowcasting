@@ -185,7 +185,7 @@ for (window_date in dump_dates_mu) {
       filter(time_value <= as.Date("2021-12-01"))
     
     # If not test points at all, next date in test time
-    if (nrow(state_test) == 0) {
+    if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
     
@@ -254,7 +254,11 @@ end_date = as.Date("2023-08-01")
 
 for (d in seq(omi_start + 1, end_date, by = 1)) {
   
-  # If less than 30 days after start, still retrain
+  
+  "
+  If less than 30 days after start, still retrain
+  "
+  
 
   if (d <= omi_start + 30) {
     
@@ -365,7 +369,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     national_test = national_get_test_backnow_raw(test_start, version)
     
     # If not test points at all, next date in test time
-    if (nrow(state_test) == 0) {
+    if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
     
@@ -408,21 +412,20 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
   
   else {
     
+    "
+    30 days later, everything is now considered to be finalized
+    No more retraining now
+    "
+
     version = as.Date(d, "1970-01-01")
     
-    print(as.Date(d, "1970-01-01"))
-    
-    if (d == as.Date("2023-01-01")) {
-      next
-    }
 
-    # 30 days later, everything is now considered to be finalized
-    # No more retraining now
+
     state_test = state_get_test_oneshot_impute(version)
     national_test = national_get_test_oneshot_impute(version)
     
     # If not test points at all, next date in test time
-    if (nrow(state_test) == 0) {
+    if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
       

@@ -58,6 +58,7 @@ labels_hosp = vroom("../../versioned_feature/ground_truth.csv") %>%
   inner_join(uspop, by = "geo_value") %>%
   mutate(GT = GT / pop * 10^5)
 
+
 # Load one day hosp counts, potentially of different `issue_date`
 # Then take rolling averages of different issue dates
 # Recall that if averages are taken within a given issue date

@@ -473,6 +473,6 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
 
 
 ```{r}
-tmp = in_raw %>% filter(issue_date == as.Date("2022-03-02"))
+tmp = state_get_test_oneshot_impute(as.Date("2023-01-01"))
 ```
 
