@@ -296,7 +296,7 @@ state_get_test_backnow_raw = function(test_start, date, max_lag = 20) {
                   mutate(time_value = as.Date(d, "1970-01-01")) %>%
                   mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
                   rename_at(vars(3:5), ~c("in_20", "in_13", "in_6")) %>%
-                  select(geo_value, time_value, issue_date, in_20, in_13 in_6)
+                  select(geo_value, time_value, issue_date, in_20, in_13, in_6)
 
     
         

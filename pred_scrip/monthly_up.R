@@ -137,11 +137,11 @@ for (window_date in dump_dates) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ in_5 + in_12 + in_19 + out_5 + out_12 + out_19, 
+      do(model = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ in_5 + in_12 + in_19 + out_5 + out_12 + out_19, 
+    national_selected_models = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
