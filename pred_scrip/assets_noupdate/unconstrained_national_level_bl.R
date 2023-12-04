@@ -273,7 +273,7 @@ national_get_test_backnow_raw = function(test_start, date, max_lag = 20) {
                     names_from = time_value, values_from = weekly_out_ratio) %>%
                   mutate(time_value = as.Date(d, "1970-01-01")) %>%
                   mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
-                  rename_at(vars(3:5), ~c("out_20", "out_12", "out_5")) %>%
+                  rename_at(vars(3:5), ~c("out_20", "out_13", "out_6")) %>%
                   select(geo_value, time_value, issue_date, out_20, out_13, out_6)
     
     f_tibble = inner_join(in_tibble, out_tibble, by = c("geo_value", "time_value", "issue_date")) %>%
@@ -419,7 +419,7 @@ national_get_test_oneshot_impute = function(date, max_lag = 20, slack = 3) {
       filter(time_value >= d - 6 - slack & time_value <= d - 6) %>%
       group_by(geo_value, issue_date) %>%
       filter(time_value == max(time_value)) %>%
-      mutate(time_value = as.Date(d - 5, "1970-01-01"))
+      mutate(time_value = as.Date(d - 6, "1970-01-01"))
     
   
 
@@ -429,7 +429,7 @@ national_get_test_oneshot_impute = function(date, max_lag = 20, slack = 3) {
       filter(time_value >= d - 13 - slack & time_value <= d - 13) %>%
       group_by(geo_value, issue_date) %>%
       filter(time_value == max(time_value)) %>%
-      mutate(time_value = as.Date(d - 12, "1970-01-01"))
+      mutate(time_value = as.Date(d - 13, "1970-01-01"))
     
     in_20 = dat %>%
       filter(issue_date == version) %>%
