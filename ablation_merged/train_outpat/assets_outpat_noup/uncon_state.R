@@ -2,7 +2,7 @@
 Script for ablation: Produce predictions with only outpatient and 
 adaptive weighting
 
-Inpatient signals at lag 5, 12, 19
+Inpatient signals at lag 6, 13, 20
 "
 
 
@@ -41,9 +41,9 @@ state_get_train_ar = function(train_end, version) {
            weekly_out_ratio, GT) %>%
     # Create auto regressive feat
     ungroup() %>%
-    mutate(out_5 = lag(weekly_out_ratio, n = 5)) %>%
-    mutate(out_12 = lag(weekly_out_ratio, n = 12)) %>%
-    mutate(out_19 = lag(weekly_out_ratio, n = 19)) %>%
+    mutate(out_6 = lag(weekly_out_ratio, n = 6)) %>%
+    mutate(out_13 = lag(weekly_out_ratio, n = 13)) %>%
+    mutate(out_20 = lag(weekly_out_ratio, n = 20)) %>%
     # Get rid of original feature 
     select(-weekly_out_ratio) %>%
     # Get rid of entries with na 
@@ -62,7 +62,7 @@ state_get_train_ar = function(train_end, version) {
 Function for getting FV features, with no imputation
 "
 
-state_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
+state_get_fv_val_ar = function(train_end, version, max_lag = 20, vl = 60) {
   
   train_end = as.Date(train_end, "1970-01-01") - max_lag 
   
@@ -98,9 +98,9 @@ state_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
     # Create auto regressive feat
     ungroup() %>%
     group_by(geo_value) %>%
-    mutate(out_5 = lag(weekly_out_ratio, n = 5)) %>%
-    mutate(out_12 = lag(weekly_out_ratio, n = 12)) %>%
-    mutate(out_19 = lag(weekly_out_ratio, n = 19)) %>%
+    mutate(out_6 = lag(weekly_out_ratio, n = 6)) %>%
+    mutate(out_13 = lag(weekly_out_ratio, n = 13)) %>%
+    mutate(out_20 = lag(weekly_out_ratio, n = 20)) %>%
     # discard original feature 
     select(-weekly_out_ratio) %>%
     # Get rid of entries with na 
@@ -115,7 +115,7 @@ state_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
 "
 Function for producing state level FV. Staleness of model never larger than 30 days.
 "
-state_produce_fv = function(gammas, train_end, version, max_lag = 19) {
+state_produce_fv = function(gammas, train_end, version, max_lag = 20) {
   
   val_frame = c()
   
@@ -149,7 +149,7 @@ state_produce_fv = function(gammas, train_end, version, max_lag = 19) {
     
     fitted_models = train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ out_5 + out_12 + out_19, 
+      do(model = lm(GT ~ out_6 + out_13 + out_20, 
                     weights = exp(-g * backcast_lag) / max(exp(-g * backcast_lag)),
                     data = .))
     
@@ -199,7 +199,7 @@ state_produce_fv = function(gammas, train_end, version, max_lag = 19) {
     
     fitted_models = train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ out_5 + out_12 + out_19, 
+      do(model = lm(GT ~ out_6 + out_13 + out_20, 
                     weights = exp(-g * backcast_lag) / max(exp(-g * backcast_lag)),
                     data = .))
     
@@ -243,7 +243,7 @@ state_produce_fv = function(gammas, train_end, version, max_lag = 19) {
 Function for getting autoregressive test feature. No imputation. 
 "
 
-state_get_test_backnow_raw = function(test_start, date, max_lag = 19) {
+state_get_test_backnow_raw = function(test_start, date, max_lag = 20) {
   
   # Roll back in time to include the first test point
   test_start = test_start - max_lag
@@ -283,15 +283,15 @@ state_get_test_backnow_raw = function(test_start, date, max_lag = 19) {
     
     out_tibble = dat %>%
       filter(issue_date == version) %>%
-      filter(time_value == d - 19 | time_value == d - 12 |
-               time_value == d- 5) %>%
+      filter(time_value == d - 20 | time_value == d - 13 |
+               time_value == d- 6) %>%
       select(geo_value, time_value, issue_date, weekly_out_ratio) %>%
       pivot_wider(
         names_from = time_value, values_from = weekly_out_ratio) %>%
       mutate(time_value = as.Date(d, "1970-01-01")) %>%
       mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
-      rename_at(vars(3:5), ~c("out_19", "out_12", "out_5")) %>%
-      select(geo_value, time_value, issue_date, out_19, out_12, out_5)
+      rename_at(vars(3:5), ~c("out_20", "out_13", "out_6")) %>%
+      select(geo_value, time_value, issue_date, out_20, out_13, out_6)
     
     f_tibble = out_tibble %>%
       inner_join(labels_hosp, by = c("geo_value", "time_value"))
@@ -323,7 +323,7 @@ state_get_test_backnow_raw = function(test_start, date, max_lag = 19) {
 "
 Test time imputation by backsearch over slack number of days. 
 "
-state_get_test_oneshot_impute = function(date, max_lag = 19, slack = 3) {
+state_get_test_oneshot_impute = function(date, max_lag = 20, slack = 3) {
   
   
   # Floor to first day of the test month
@@ -349,39 +349,39 @@ state_get_test_oneshot_impute = function(date, max_lag = 19, slack = 3) {
     
     # Need to handle situation where an entire `time_value` is missing 
     
-    in_5 = dat %>%
+    out_6 = dat %>%
       filter(issue_date == version) %>%
       # search no more than slack days back
-      filter(time_value >= d - 5 - slack & time_value <= d - 5) %>%
+      filter(time_value >= d - 6 - slack & time_value <= d - 6) %>%
       group_by(geo_value, issue_date) %>%
       filter(time_value == max(time_value)) %>%
-      mutate(time_value = as.Date(d - 5, "1970-01-01"))
+      mutate(time_value = as.Date(d - 6, "1970-01-01"))
     
   
 
-    in_12 = dat %>%
+    out_13 = dat %>%
       filter(issue_date == version) %>%
       # search no more than slack days back
-      filter(time_value >= d - 12 - slack & time_value <= d - 12) %>%
+      filter(time_value >= d - 13 - slack & time_value <= d - 13) %>%
       group_by(geo_value, issue_date) %>%
       filter(time_value == max(time_value)) %>%
-      mutate(time_value = as.Date(d - 12, "1970-01-01"))
+      mutate(time_value = as.Date(d - 13, "1970-01-01"))
     
-    in_19 = dat %>%
+    out_20 = dat %>%
       filter(issue_date == version) %>%
       # search no more than slack days back
-      filter(time_value >= d - 19 - slack & time_value <= d - 19) %>%
+      filter(time_value >= d - 20 - slack & time_value <= d - 20) %>%
       group_by(geo_value, issue_date) %>%
       filter(time_value == max(time_value)) %>%
-      mutate(time_value = as.Date(d - 19, "1970-01-01"))
+      mutate(time_value = as.Date(d - 20, "1970-01-01"))
     
-    if (nrow(in_5) == 0 | nrow(in_12) == 0 | nrow(in_19) == 0) {
+    if (nrow(out_6) == 0 | nrow(out_13) == 0 | nrow(out_20) == 0) {
 
       break
 
     }
 
-    out_tibble = rbind(in_5, in_12, in_19) %>%
+    out_tibble = rbind(out_6, out_13, out_20) %>%
       select(geo_value, time_value, issue_date, weekly_out_ratio) %>%
       group_by(geo_value, issue_date) %>%
       arrange(time_value, by_group = TRUE)
@@ -394,8 +394,8 @@ state_get_test_oneshot_impute = function(date, max_lag = 19, slack = 3) {
         names_from = time_value, values_from = weekly_out_ratio) %>%
       mutate(time_value = as.Date(d, "1970-01-01")) %>%
       mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
-      rename_at(vars(3:5), ~c("out_19", "out_12", "out_5")) %>%
-      select(geo_value, time_value, issue_date, out_19, out_12, out_5)
+      rename_at(vars(3:5), ~c("out_20", "out_13", "out_6")) %>%
+      select(geo_value, time_value, issue_date, out_20, out_13, out_6)
     
     f_tibble = out_tibble %>%
       inner_join(labels_hosp, by = c("geo_value", "time_value"))

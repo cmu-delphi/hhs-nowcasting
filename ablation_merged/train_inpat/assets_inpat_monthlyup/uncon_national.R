@@ -1,6 +1,6 @@
 "
 Script for producing predictions with all past using only inpatient features
-at lag 5, 12, 19
+at lag 6, 13, 20
 
 Almost identical with state-level implementation, only ungroup()
 "
@@ -34,9 +34,9 @@ national_get_train_ar = function(train_end, version) {
     select(geo_value, time_value, issue_date, weekly_in_ratio, GT) %>%
     # Create auto regressive feat
     ungroup() %>%
-    mutate(in_5 = lag(weekly_in_ratio, n = 5)) %>%
-    mutate(in_12 = lag(weekly_in_ratio, n = 12)) %>%
-    mutate(in_19 = lag(weekly_in_ratio, n = 19)) %>%
+    mutate(in_6 = lag(weekly_in_ratio, n = 6)) %>%
+    mutate(in_13 = lag(weekly_in_ratio, n = 13)) %>%
+    mutate(in_20 = lag(weekly_in_ratio, n = 20)) %>%
     # Get rid of original feature 
     select(-weekly_in_ratio) %>%
     # Get rid of entries with na 
@@ -53,7 +53,7 @@ national_get_train_ar = function(train_end, version) {
 
 
 
-national_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
+national_get_fv_val_ar = function(train_end, version, max_lag = 20, vl = 60) {
   
   train_end = as.Date(train_end, "1970-01-01") - max_lag 
   
@@ -88,9 +88,9 @@ national_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
     # Create auto regressive feat
     ungroup() %>%
     group_by(geo_value) %>%
-    mutate(in_5 = lag(weekly_in_ratio, n = 5)) %>%
-    mutate(in_12 = lag(weekly_in_ratio, n = 12)) %>%
-    mutate(in_19 = lag(weekly_in_ratio, n = 19)) %>%
+    mutate(in_6 = lag(weekly_in_ratio, n = 6)) %>%
+    mutate(in_13 = lag(weekly_in_ratio, n = 13)) %>%
+    mutate(in_20 = lag(weekly_in_ratio, n = 20)) %>%
     # discard original feature 
     select(-weekly_in_ratio) %>%
     # Get rid of entries with na 
@@ -103,7 +103,7 @@ national_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
 
 
 
-national_produce_fv = function(gammas, train_end, version, max_lag = 19) {
+national_produce_fv = function(gammas, train_end, version, max_lag = 20) {
   
   val_frame = c()
   
@@ -137,7 +137,7 @@ national_produce_fv = function(gammas, train_end, version, max_lag = 19) {
   for (g in gammas) {
     
     fitted_models = 
-      lm(GT ~ in_5 + in_12 + in_19, 
+      lm(GT ~ in_6 + in_13 + in_20, 
          weights = exp(-g * backcast_lag) / max(exp(-g * backcast_lag)),
          data = train)
     
@@ -181,7 +181,7 @@ national_produce_fv = function(gammas, train_end, version, max_lag = 19) {
     
     
     fitted_models = 
-      lm(GT ~ in_5 + in_12 + in_19, 
+      lm(GT ~ in_6 + in_13 + in_20, 
          weights = exp(-g * backcast_lag) / max(exp(-g * backcast_lag)),
          data = train)
     
@@ -220,7 +220,7 @@ national_produce_fv = function(gammas, train_end, version, max_lag = 19) {
 Function for getting autoregressive test feature. No imputation. 
 "
 
-national_get_test_backnow_raw = function(test_start, date, max_lag = 19) {
+national_get_test_backnow_raw = function(test_start, date, max_lag = 20) {
   
   # Roll back in time to include the first test point
   test_start = test_start - max_lag
@@ -261,15 +261,15 @@ national_get_test_backnow_raw = function(test_start, date, max_lag = 19) {
     
     in_tibble = dat %>%
       filter(issue_date == version) %>%
-      filter(time_value == d - 19 | time_value == d - 12 | 
-               time_value == d - 5) %>%
+      filter(time_value == d - 20 | time_value == d - 13 | 
+               time_value == d - 6) %>%
       select(geo_value, time_value, issue_date, weekly_in_ratio) %>%
       pivot_wider(
         names_from = time_value, values_from = weekly_in_ratio) %>%
       mutate(time_value = as.Date(d, "1970-01-01")) %>%
       mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
-      rename_at(vars(3:5), ~c("in_19", "in_12", "in_5")) %>%
-      select(geo_value, time_value, issue_date, in_19, in_12, in_5)
+      rename_at(vars(3:5), ~c("in_20", "in_13", "in_6")) %>%
+      select(geo_value, time_value, issue_date, in_20, in_13, in_6)
     
     
     

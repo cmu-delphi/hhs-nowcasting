@@ -1,6 +1,6 @@
 "
 Scripts for ablation: Producing predictions with only outpatient signal
-with lags 5, 12, 19
+with lags 6, 13, 20
 "
 
 
@@ -35,9 +35,9 @@ national_get_train_ar = function(train_end, version) {
            weekly_out_ratio, GT) %>%
     # Create auto regressive feat
     ungroup() %>%
-    mutate(out_5 = lag(weekly_out_ratio, n = 5)) %>%
-    mutate(out_12 = lag(weekly_out_ratio, n = 12)) %>%
-    mutate(out_19 = lag(weekly_out_ratio, n = 19)) %>%
+    mutate(out_6 = lag(weekly_out_ratio, n = 6)) %>%
+    mutate(out_13 = lag(weekly_out_ratio, n = 13)) %>%
+    mutate(out_20 = lag(weekly_out_ratio, n = 20)) %>%
     # Get rid of original feature 
     select(-weekly_out_ratio) %>%
     # Get rid of entries with na 
@@ -92,9 +92,9 @@ national_get_fv_val_ar = function(train_end, version, max_lag = 19, vl = 60) {
     # Create auto regressive feat
     ungroup() %>%
     group_by(geo_value) %>%
-    mutate(out_5 = lag(weekly_out_ratio, n = 5)) %>%
-    mutate(out_12 = lag(weekly_out_ratio, n = 12)) %>%
-    mutate(out_19 = lag(weekly_out_ratio, n = 19)) %>%
+    mutate(out_6 = lag(weekly_out_ratio, n =6)) %>%
+    mutate(out_13 = lag(weekly_out_ratio, n = 13)) %>%
+    mutate(out_20 = lag(weekly_out_ratio, n = 20)) %>%
     # discard original feature 
     select(-weekly_out_ratio) %>%
     # Get rid of entries with na 
@@ -141,7 +141,7 @@ national_produce_fv = function(gammas, train_end, version, max_lag = 19) {
   for (g in gammas) {
     
     fitted_models = 
-      lm(GT ~ out_5 + out_12 + out_19, 
+      lm(GT ~ out_6 + out_13 + out_20, 
          weights = exp(-g * backcast_lag) / max(exp(-g * backcast_lag)),
          data = train)
     
@@ -185,7 +185,7 @@ national_produce_fv = function(gammas, train_end, version, max_lag = 19) {
     
     
     fitted_models = 
-      lm(GT ~ out_5 + out_12 + out_19, 
+      lm(GT ~ out_6 + out_13 + out_20, 
          weights = exp(-g * backcast_lag) / max(exp(-g * backcast_lag)),
          data = train)
     
@@ -262,15 +262,15 @@ national_get_test_backnow_raw = function(test_start, date, max_lag = 19) {
     
     out_tibble = dat %>%
       filter(issue_date == version) %>%
-      filter(time_value == d - 19 | time_value == d - 12 |
-               time_value == d- 5) %>%
+      filter(time_value == d - 20 | time_value == d - 13 |
+               time_value == d- 6) %>%
       select(geo_value, time_value, issue_date, weekly_out_ratio) %>%
       pivot_wider(
         names_from = time_value, values_from = weekly_out_ratio) %>%
       mutate(time_value = as.Date(d, "1970-01-01")) %>%
       mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
-      rename_at(vars(3:5), ~c("out_19", "out_12", "out_5")) %>%
-      select(geo_value, time_value, issue_date, out_19, out_12, out_5)
+      rename_at(vars(3:5), ~c("out_20", "out_13", "out_6")) %>%
+      select(geo_value, time_value, issue_date, out_20, out_13, out_6)
     
     f_tibble = out_tibble %>%
       inner_join(labels_hosp, by = c("geo_value", "time_value"))
