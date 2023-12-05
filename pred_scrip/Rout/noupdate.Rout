@@ -1840,3 +1840,11 @@ Joining with `by = join_by(geo_value)`
 [1] "2022-01-25"
 Joining with `by = join_by(geo_value)`
 [1] "2022-01-26"
+Joining with `by = join_by(geo_value)`
+[1] "2022-01-27"
+Joining with `by = join_by(geo_value)`
+[1] "2022-01-28"
+Joining with `by = join_by(geo_value)`
+[1] "2022-01-29"
+Joining with `by = join_by(geo_value)`
+[1] "2022-01-30"
