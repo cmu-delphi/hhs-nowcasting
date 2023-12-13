@@ -1,4 +1,9 @@
-## -------------------------------------------------------------------------------------------------------------------------------------------
+"
+Ablation: Train only on inpatient features, weighted. 
+"
+
+
+
 "
 Monthly update portion
 "
@@ -9,8 +14,7 @@ source("assets_inpat_monthlyup/uncon_national.R")
 
 
 
-gammas = signif(seq(0, 0.07, length.out = 25), 3)
-gammas = gammas[gammas <= 0.0625]
+gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
 
 cadence = 30
@@ -413,12 +417,10 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     
     print(as.Date(d, "1970-01-01"))
     
-    if (d == as.Date("2023-01-01")) {
-      next
-    }
 
     "30 days later, everything is now considered to be finalized
     No more retraining now"
+
     state_test = state_get_test_oneshot_impute(version)
     national_test = national_get_test_oneshot_impute(version)
     

@@ -1,10 +1,12 @@
-## ------------------------------------------------------------------------------------------------------------------------------------------
+"
+Script for producing predictions: no update hypothetical.
+"
+
 source("assets_noupdate/data_load.R")
 source("assets_noupdate/unconstrained_state_level_big_lag.R")
 source("assets_noupdate/unconstrained_national_level_bl.R")
 
 
-## ------------------------------------------------------------------------------------------------------------------------------------------
 "
 One shot for omicron and after, only retrain 30 days after start
 As we consider every signal entry issued after that to be fixed

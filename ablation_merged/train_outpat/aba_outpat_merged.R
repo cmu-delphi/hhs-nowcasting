@@ -1,6 +1,5 @@
-## -------------------------------------------------------------------------------------------------------------------------------------------
 "
-Monthly update part
+Ablation: Train only on outpatient features, weighted. 
 "
 
 
@@ -9,8 +8,7 @@ source("assets_outpat_monthlyup/uncon_state.R")
 source("assets_outpat_monthlyup/uncon_national.R")
 
 
-gammas = signif(seq(0, 0.07, length.out = 25), 3)
-gammas = gammas[gammas <= 0.0625]
+gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
 
 cadence = 30

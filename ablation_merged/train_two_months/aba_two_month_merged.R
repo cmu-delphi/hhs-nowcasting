@@ -1,6 +1,5 @@
-## -------------------------------------------------------------------------------------------------------------------------------------------
 "
-Monthly update part
+Ablation: train on two most recent months of data. Unweighted.
 "
 
 source("assets_tm_monthlyup/data_load_mu.R")
