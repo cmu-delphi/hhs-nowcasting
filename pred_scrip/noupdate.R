@@ -13,8 +13,7 @@ No recieving labels on or after 2021-12-01
 
 omi_start = as.Date("2021-11-30")
 end_date = as.Date("2023-08-01")
-gammas = signif(seq(0, 0.07, length.out = 25), 3)
-gammas = gammas[gammas <= 0.0625]
+gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
 
 cadence = 30

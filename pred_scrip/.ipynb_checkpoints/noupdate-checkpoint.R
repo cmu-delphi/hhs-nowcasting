@@ -13,8 +13,7 @@ No recieving labels on or after 2021-12-01
 
 omi_start = as.Date("2021-11-30")
 end_date = as.Date("2023-08-01")
-gammas = signif(seq(0, 0.07, length.out = 25), 3)
-gammas = gammas[gammas <= 0.0625]
+gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
 
 cadence = 30
@@ -93,11 +92,11 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ in_5 + in_12 + in_19 + out_5 + out_12 + out_19, 
+      do(model = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ in_5 + in_12 + in_19 + out_5 + out_12 + out_19, 
+    national_selected_models = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
