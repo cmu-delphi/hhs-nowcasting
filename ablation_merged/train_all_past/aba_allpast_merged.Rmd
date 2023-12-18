@@ -17,11 +17,6 @@ gets frozen and just produces predictions untill 2023-08-01.
 # Monthly update runs from April 1 2021 to Dec 1 2021
 # No update from Dec 2 2021 to Aug 1 2023. 
 
-
-"
-Monthly Update part
-"
-
 source("assets_all_past_monthlyup/data_load_mu.R")
 source("assets_all_past_monthlyup/uncon_state.R")
 source("assets_all_past_monthlyup/uncon_national.R")
@@ -152,11 +147,11 @@ for (window_date in dump_dates_mu) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ in_5 + in_12 + in_19 + out_5 + out_12 + out_19, 
+      do(model = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ in_5 + in_12 + in_19 + out_5 + out_12 + out_19, 
+    national_selected_models = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
@@ -200,7 +195,7 @@ for (window_date in dump_dates_mu) {
       filter(time_value <= as.Date("2021-12-01"))
     
     # If not test points at all, next date in test time
-    if (nrow(state_test) == 0) {
+    if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
     
@@ -269,7 +264,11 @@ end_date = as.Date("2023-08-01")
 
 for (d in seq(omi_start + 1, end_date, by = 1)) {
   
-  # If less than 30 days after start, still retrain
+  
+  "
+  If less than 30 days after start, still retrain
+  "
+  
 
   if (d <= omi_start + 30) {
     
@@ -328,11 +327,11 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ in_5 + in_12 + in_19 + out_5 + out_12 + out_19, 
+      do(model = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ in_5 + in_12 + in_19 + out_5 + out_12 + out_19, 
+    national_selected_models = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
@@ -380,7 +379,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     national_test = national_get_test_backnow_raw(test_start, version)
     
     # If not test points at all, next date in test time
-    if (nrow(state_test) == 0) {
+    if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
     
@@ -423,15 +422,23 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
   
   else {
     
+    "
+    30 days later, everything is now considered to be finalized
+    No more retraining now
+    "
+
     version = as.Date(d, "1970-01-01")
     
-    print(as.Date(d, "1970-01-01"))
-    
-    # 30 days later, everything is now considered to be finalized
-    # No more retraining now
+
+
     state_test = state_get_test_oneshot_impute(version)
     national_test = national_get_test_oneshot_impute(version)
     
+    # If not test points at all, next date in test time
+    if (nrow(state_test) == 0 || is.null(state_test)) {
+      next
+    }
+      
     
     state_test = state_test %>%
       group_by(geo_value) %>%
@@ -444,6 +451,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
       verify(nrow(.) != 0)
   
   
+
     state_Tested = state_test %>%
       do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
       rename(state_fit = .fitted) %>%

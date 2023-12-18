@@ -279,13 +279,13 @@ state_get_test_backnow_raw = function(test_start, date, max_lag = 20) {
     out_tibble = dat %>%
                   filter(issue_date == version) %>%
                   filter(time_value == d - 20 | time_value == d - 13 |
-                           time_value == d- 6) %>%
+                           time_value == d - 6) %>%
                   select(geo_value, time_value, issue_date, weekly_out_ratio) %>%
                   pivot_wider(
                     names_from = time_value, values_from = weekly_out_ratio) %>%
                   mutate(time_value = as.Date(d, "1970-01-01")) %>%
                   mutate(issue_date = as.Date(version, "1970-01-01")) %>% 
-                  rename_at(vars(3:5), ~c("out_19", "out_13", "out_6")) %>%
+                  rename_at(vars(3:5), ~c("out_20", "out_13", "out_6")) %>%
                   select(geo_value, time_value, issue_date, out_20, out_13, out_6)
     
     f_tibble = inner_join(in_tibble, out_tibble, by = c("geo_value", "time_value", "issue_date")) %>%
