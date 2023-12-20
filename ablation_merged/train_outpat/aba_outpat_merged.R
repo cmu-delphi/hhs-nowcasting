@@ -370,12 +370,14 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     
     
     state_test = state_get_test_backnow_raw(test_start, version)
-    national_test = national_get_test_backnow_raw(test_start, version)
     
     # If not test points at all, next date in test time
     if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
+    national_test = national_get_test_backnow_raw(test_start, version)
+    
+
     
     # Another round of making sure out of sample
     stopifnot(max(state_val_frame$time_value) <= min(state_test$time_value))
