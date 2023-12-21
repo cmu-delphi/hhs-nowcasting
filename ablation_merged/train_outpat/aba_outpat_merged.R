@@ -427,13 +427,15 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
 
 
     state_test = state_get_test_oneshot_impute(version)
-    national_test = national_get_test_oneshot_impute(version)
     
     # If not test points at all, next date in test time
     if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
       
+    national_test = national_get_test_oneshot_impute(version)
+    
+
       
       
     state_test = state_test %>%

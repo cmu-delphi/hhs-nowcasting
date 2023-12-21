@@ -1,5 +1,5 @@
 
-R version 4.3.0 (2023-04-21) -- "Already Tomorrow"
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
 Copyright (C) 2023 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu (64-bit)
 
@@ -17,11 +17,10 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
-> ## -------------------------------------------------------------------------------------------------------------------------------------------
 > "
-+ Monthly update part
++ Ablation: train on two most recent months of data. Unweighted.
 + "
-[1] "\nMonthly update part\n"
+[1] "\nAblation: train on two most recent months of data. Unweighted.\n"
 > 
 > source("assets_tm_monthlyup/data_load_mu.R")
 
@@ -49,7 +48,7 @@ The following objects are masked from ‘package:base’:
 
     intersect, setdiff, setequal, union
 
-Rows: 51489618 Columns: 9
+Rows: 47941871 Columns: 9
 ── Column specification ────────────────────────────────────────────────────────
 Delimiter: ","
 chr  (1): geo_value
@@ -58,7 +57,7 @@ date (2): issue_date, time_value
 
 ℹ Use `spec()` to retrieve the full column specification for this data.
 ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-Rows: 36857165 Columns: 10
+Rows: 36836755 Columns: 10
 ── Column specification ────────────────────────────────────────────────────────
 Delimiter: ","
 chr  (1): geo_value
@@ -3472,7 +3471,7 @@ Joining with `by = join_by(geo_value)`
 [1] "\nNo update part \n"
 > 
 > source("assets_tm_noup/data_load_noup.R")
-Rows: 51489618 Columns: 9
+Rows: 47941871 Columns: 9
 ── Column specification ────────────────────────────────────────────────────────
 Delimiter: ","
 chr  (1): geo_value
@@ -3481,7 +3480,7 @@ date (2): issue_date, time_value
 
 ℹ Use `spec()` to retrieve the full column specification for this data.
 ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-Rows: 36857165 Columns: 10
+Rows: 36836755 Columns: 10
 ── Column specification ────────────────────────────────────────────────────────
 Delimiter: ","
 chr  (1): geo_value
@@ -4685,29 +4684,463 @@ Joining with `by = join_by(geo_value)`
 Joining with `by = join_by(geo_value)`
 [1] "2023-01-01"
 Joining with `by = join_by(geo_value)`
-Error in `mutate()`:
-ℹ In argument: `national_fit = predict(national_selected_models, newdata
-  = .)`.
-Caused by error in `model.frame.default()`:
-! invalid type (list) for variable 'in_6'
-Backtrace:
-     ▆
-  1. ├─... %>% verify(nrow(.) != 0)
-  2. ├─assertr::verify(., nrow(.) != 0)
-  3. │ └─base::isTRUE(attr(data, "assertr_data_defective"))
-  4. ├─dplyr::mutate(...)
-  5. ├─dplyr:::mutate.data.frame(., national_fit = predict(national_selected_models, newdata = .))
-  6. │ └─dplyr:::mutate_cols(.data, dplyr_quosures(...), by)
-  7. │   ├─base::withCallingHandlers(...)
-  8. │   └─dplyr:::mutate_col(dots[[i]], data, mask, new_columns)
-  9. │     └─mask$eval_all_mutate(quo)
- 10. │       └─dplyr (local) eval()
- 11. ├─stats::predict(national_selected_models, newdata = .)
- 12. ├─stats::predict.lm(national_selected_models, newdata = .)
- 13. │ ├─stats::model.frame(Terms, newdata, na.action = na.action, xlev = object$xlevels)
- 14. │ └─stats::model.frame.default(...)
- 15. └─base::.handleSimpleError(...)
- 16.   └─dplyr (local) h(simpleError(msg, call))
- 17.     └─rlang::abort(message, class = error_class, parent = parent, call = error_call)
-There were 50 or more warnings (use warnings() to see the first 50)
-Execution halted
+[1] "2023-01-02"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-03"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-04"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-05"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-06"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-07"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-08"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-09"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-10"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-11"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-12"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-13"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-14"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-15"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-16"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-17"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-18"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-19"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-20"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-21"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-22"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-23"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-24"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-25"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-26"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-27"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-28"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-29"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-30"
+Joining with `by = join_by(geo_value)`
+[1] "2023-01-31"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-01"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-02"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-03"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-04"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-05"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-06"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-07"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-08"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-09"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-10"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-11"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-12"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-13"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-14"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-15"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-16"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-17"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-18"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-19"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-20"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-21"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-22"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-23"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-24"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-25"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-26"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-27"
+Joining with `by = join_by(geo_value)`
+[1] "2023-02-28"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-01"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-02"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-03"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-04"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-05"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-06"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-07"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-08"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-09"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-10"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-11"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-12"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-13"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-14"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-15"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-16"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-17"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-18"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-19"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-20"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-21"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-22"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-23"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-24"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-25"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-26"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-27"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-28"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-29"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-30"
+Joining with `by = join_by(geo_value)`
+[1] "2023-03-31"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-01"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-02"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-03"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-04"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-05"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-06"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-07"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-08"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-09"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-10"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-11"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-12"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-13"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-14"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-15"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-16"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-17"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-18"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-19"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-20"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-21"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-22"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-23"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-24"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-25"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-26"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-27"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-28"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-29"
+Joining with `by = join_by(geo_value)`
+[1] "2023-04-30"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-01"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-02"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-03"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-04"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-05"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-06"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-07"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-08"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-09"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-10"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-11"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-12"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-13"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-14"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-15"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-16"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-17"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-18"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-19"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-20"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-21"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-22"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-23"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-24"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-25"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-26"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-27"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-28"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-29"
+Joining with `by = join_by(geo_value)`
+[1] "2023-05-30"
+[1] "2023-05-31"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-01"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-02"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-03"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-04"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-05"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-06"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-07"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-08"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-09"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-10"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-11"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-12"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-13"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-14"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-15"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-16"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-17"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-18"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-19"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-20"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-21"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-22"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-23"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-24"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-25"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-26"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-27"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-28"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-29"
+Joining with `by = join_by(geo_value)`
+[1] "2023-06-30"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-01"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-02"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-03"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-04"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-05"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-06"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-07"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-08"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-09"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-10"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-11"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-12"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-13"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-14"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-15"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-16"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-17"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-18"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-19"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-20"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-21"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-22"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-23"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-24"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-25"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-26"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-27"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-28"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-29"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-30"
+Joining with `by = join_by(geo_value)`
+[1] "2023-07-31"
+Joining with `by = join_by(geo_value)`
+[1] "2023-08-01"
+Joining with `by = join_by(geo_value)`
+Warning messages:
+1: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+2: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+3: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+4: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+5: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+6: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+> 
+> 
+> write.csv(back_2, "../../predictions/aba_noup_twomonth.csv", row.names = FALSE)
+> 
+> 
+> 
+> 
+> 
+> 
+> proc.time()
+     user    system   elapsed 
+309471.00  20181.47 330632.58 

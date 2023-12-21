@@ -253,13 +253,6 @@ No update part
 "
 
 
-
-
-"
-No update part
-"
-
-
 source("assets_outpat_noup/data_load_outpat_noup.R")
 source("assets_outpat_noup/uncon_state.R")
 source("assets_outpat_noup/uncon_national.R")
@@ -344,11 +337,11 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ out_6 + out_13 + out_20, 
+      do(model = lm(GT ~ out_5 + out_12 + out_19, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ out_6 + out_13 + out_20, 
+    national_selected_models = lm(GT ~ out_5 + out_12 + out_19, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
@@ -393,14 +386,12 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     
     
     state_test = state_get_test_backnow_raw(test_start, version)
-    
-    # If not test points at all, next date in test time
-    if (nrow(state_test) == 0 || is.null(state_test)) {
-      next
-    }
     national_test = national_get_test_backnow_raw(test_start, version)
     
-
+    # If not test points at all, next date in test time
+    if (nrow(state_test) == 0) {
+      next
+    }
     
     # Another round of making sure out of sample
     stopifnot(max(state_val_frame$time_value) <= min(state_test$time_value))
@@ -440,27 +431,17 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
   }
   
   else {
-
-    "30 days later, everything is now considered to be finalized
-    No more retraining now    "
+    
     version = as.Date(d, "1970-01-01")
     
     print(as.Date(d, "1970-01-01"))
     
-
-
+    # 30 days later, everything is now considered to be finalized
+    # No more retraining now
     state_test = state_get_test_oneshot_impute(version)
-    
-    # If not test points at all, next date in test time
-    if (nrow(state_test) == 0 || is.null(state_test)) {
-      next
-    }
-      
     national_test = national_get_test_oneshot_impute(version)
     
-
-      
-      
+    
     state_test = state_test %>%
       group_by(geo_value) %>%
       nest() %>%

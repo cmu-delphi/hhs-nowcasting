@@ -1,5 +1,5 @@
 
-R version 4.3.0 (2023-04-21) -- "Already Tomorrow"
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
 Copyright (C) 2023 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu (64-bit)
 
@@ -17,9 +17,10 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
-> ## --------------------------------------------------------------------------------------------------------------------------------
-> # Monthly update runs from April 1 2021 to Dec 1 2021
-> # No update from Dec 2 2021 to Aug 1 2023. 
+> "
++ Ablation: Train on all past, unweighted 
++ "
+[1] "\nAblation: Train on all past, unweighted \n"
 > 
 > 
 > "
@@ -53,7 +54,7 @@ The following objects are masked from ‘package:base’:
 
     intersect, setdiff, setequal, union
 
-Rows: 51489618 Columns: 9
+Rows: 47941871 Columns: 9
 ── Column specification ────────────────────────────────────────────────────────
 Delimiter: ","
 chr  (1): geo_value
@@ -62,7 +63,7 @@ date (2): issue_date, time_value
 
 ℹ Use `spec()` to retrieve the full column specification for this data.
 ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-Rows: 36857165 Columns: 10
+Rows: 36836755 Columns: 10
 ── Column specification ────────────────────────────────────────────────────────
 Delimiter: ","
 chr  (1): geo_value
@@ -3485,7 +3486,7 @@ Joining with `by = join_by(geo_value)`
 > # some functions are named the same, but inner constructions 
 > # are different due to a consolidated training file 
 > source("assets_all_past_noup/data_load_no.R")
-Rows: 51489618 Columns: 9
+Rows: 47941871 Columns: 9
 ── Column specification ────────────────────────────────────────────────────────
 Delimiter: ","
 chr  (1): geo_value
@@ -3494,7 +3495,7 @@ date (2): issue_date, time_value
 
 ℹ Use `spec()` to retrieve the full column specification for this data.
 ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-Rows: 36857165 Columns: 10
+Rows: 36836755 Columns: 10
 ── Column specification ────────────────────────────────────────────────────────
 Delimiter: ","
 chr  (1): geo_value
@@ -3746,31 +3747,819 @@ Joining with `by = join_by(geo_value)`
 `.groups` argument.
 `summarise()` has grouped output by 'geo_value'. You can override using the
 `.groups` argument.
-Error in `select()`:
-! Can't subset columns that don't exist.
-✖ Column `out_20` doesn't exist.
-Backtrace:
-     ▆
-  1. ├─global state_get_test_backnow_raw(test_start, version)
-  2. │ └─... %>% ...
-  3. ├─dplyr::select(...)
-  4. ├─dplyr:::select.data.frame(., geo_value, time_value, issue_date, out_20, out_13, out_6)
-  5. │ └─tidyselect::eval_select(expr(c(...)), data = .data, error_call = error_call)
-  6. │   └─tidyselect:::eval_select_impl(...)
-  7. │     ├─tidyselect:::with_subscript_errors(...)
-  8. │     │ └─rlang::try_fetch(...)
-  9. │     │   └─base::withCallingHandlers(...)
- 10. │     └─tidyselect:::vars_select_eval(...)
- 11. │       └─tidyselect:::walk_data_tree(expr, data_mask, context_mask)
- 12. │         └─tidyselect:::eval_c(expr, data_mask, context_mask)
- 13. │           └─tidyselect:::reduce_sels(node, data_mask, context_mask, init = init)
- 14. │             └─tidyselect:::walk_data_tree(new, data_mask, context_mask)
- 15. │               └─tidyselect:::as_indices_sel_impl(...)
- 16. │                 └─tidyselect:::as_indices_impl(...)
- 17. │                   └─tidyselect:::chr_as_locations(x, vars, call = call, arg = arg)
- 18. │                     └─vctrs::vec_as_location(...)
- 19. └─vctrs (local) `<fn>`()
- 20.   └─vctrs:::stop_subscript_oob(...)
- 21.     └─vctrs:::stop_subscript(...)
- 22.       └─rlang::abort(...)
-Execution halted
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+`summarise()` has grouped output by 'geo_value'. You can override using the
+`.groups` argument.
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Joining with `by = join_by(geo_value)`
+Warning messages:
+1: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+2: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+3: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+4: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+5: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+6: There was 1 warning in `filter()`.
+ℹ In argument: `time_value == max(time_value)`.
+Caused by warning in `max.default()`:
+! no non-missing arguments to max; returning -Inf 
+> 
+> 
+> 
+> 
+> write.csv(back_2, "../../predictions/aba_allpast.csv", row.names = FALSE)
+> 
+> proc.time()
+     user    system   elapsed 
+250866.10  61493.15 313061.29 

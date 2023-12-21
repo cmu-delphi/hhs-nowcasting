@@ -1,6 +1,5 @@
-## -------------------------------------------------------------------------------------------------------------------------------------------
 "
-Monthly update part
+Ablation: Train only on outpatient features, weighted. 
 "
 
 
@@ -9,8 +8,7 @@ source("assets_outpat_monthlyup/uncon_state.R")
 source("assets_outpat_monthlyup/uncon_national.R")
 
 
-gammas = signif(seq(0, 0.07, length.out = 25), 3)
-gammas = gammas[gammas <= 0.0625]
+gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
 
 cadence = 30
@@ -132,11 +130,11 @@ for (window_date in dump_dates) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ out_5 + out_12 + out_19, 
+      do(model = lm(GT ~ out_6 + out_13 + out_20, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ out_5 + out_12 + out_19, 
+    national_selected_models = lm(GT ~ out_6 + out_13 + out_20, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
@@ -178,7 +176,7 @@ for (window_date in dump_dates) {
       filter(time_value <= as.Date("2021-12-01"))
     
     # If not test points at all, next date in test time
-    if (nrow(state_test) == 0) {
+    if (is.null(state_test)) {
       next
     }
     
@@ -323,11 +321,11 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
-      do(model = lm(GT ~ out_5 + out_12 + out_19, 
+      do(model = lm(GT ~ out_6 + out_13 + out_20, 
                     weights = exp(-gamma * backcast_lag) / max(exp(-gamma * backcast_lag)),
                     data = .))
     
-    national_selected_models = lm(GT ~ out_5 + out_12 + out_19, 
+    national_selected_models = lm(GT ~ out_6 + out_13 + out_20, 
                     weights = exp(-ng * backcast_lag) / max(exp(-ng * backcast_lag)),
                     data = national_train)
     
@@ -372,12 +370,14 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     
     
     state_test = state_get_test_backnow_raw(test_start, version)
-    national_test = national_get_test_backnow_raw(test_start, version)
     
     # If not test points at all, next date in test time
-    if (nrow(state_test) == 0) {
+    if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
+    national_test = national_get_test_backnow_raw(test_start, version)
+    
+
     
     # Another round of making sure out of sample
     stopifnot(max(state_val_frame$time_value) <= min(state_test$time_value))
@@ -417,21 +417,25 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
   }
   
   else {
-    
+
+    "30 days later, everything is now considered to be finalized
+    No more retraining now    "
     version = as.Date(d, "1970-01-01")
     
     print(as.Date(d, "1970-01-01"))
     
-    # 30 days later, everything is now considered to be finalized
-    # No more retraining now
+
+
     state_test = state_get_test_oneshot_impute(version)
-    national_test = national_get_test_oneshot_impute(version)
     
     # If not test points at all, next date in test time
-    if (nrow(state_test) == 0) {
+    if (nrow(state_test) == 0 || is.null(state_test)) {
       next
     }
       
+    national_test = national_get_test_oneshot_impute(version)
+    
+
       
       
     state_test = state_test %>%
