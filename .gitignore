@@ -5,3 +5,4 @@ versioned_feature/rebuild_outpatient_raw_avg.csv
 *.csv
 *.cs
 *.7z
+.DS_Store
