@@ -31,7 +31,7 @@ us_pop = covidcast::state_census %>%
           filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
 
 
-uncon_mixed_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+uncon_mixed_pred = vroom("../../../predictions/bl_versioned_hhs_mixed.csv") %>%
   filter(time_value <= as.Date("2021-12-01")) %>%
   inner_join(us_pop, by = "geo_value") %>%
   mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
@@ -43,7 +43,7 @@ uncon_mixed_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv") %>%
   inner_join(us_pop, by = "geo_value")
 
 
-uncon_national_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+uncon_national_pred = vroom("../../../predictions/bl_versioned_hhs_mixed.csv") %>%
   filter(time_value <= as.Date("2021-12-01")) %>%
   inner_join(us_pop, by = "geo_value") %>%
   mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
@@ -55,7 +55,7 @@ uncon_national_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv") %>%
   inner_join(us_pop, by = "geo_value")
 
 
-uncon_state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+uncon_state_pred = vroom("../../../predictions/bl_versioned_hhs_mixed.csv") %>%
   inner_join(us_pop, by = "geo_value") %>%
   filter(time_value <= as.Date("2021-12-01")) %>%
   mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%

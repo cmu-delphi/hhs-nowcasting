@@ -37,7 +37,7 @@ us_pop = covidcast::state_census %>%
           mutate(geo_value = tolower(geo_value)) %>%
           filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
 
-bl_mixed_now = read.csv("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+bl_mixed_now = read.csv("../../../predictions/bl_versioned_hhs_mixed.csv") %>%
   inner_join(us_pop, by = "geo_value") %>%
   filter(time_value <= as.Date("2021-12-01")) %>%
   mutate(issue_date = as.Date(issue_date),
@@ -51,7 +51,7 @@ bl_mixed_now = read.csv("../../predictions/bl_versioned_hhs_mixed.csv") %>%
   select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
          GT, mixed_pred, GT_norm_back, pred_norm_back)
 
-bl_mixed_5 = read.csv("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+bl_mixed_5 = read.csv("../../../predictions/bl_versioned_hhs_mixed.csv") %>%
   inner_join(us_pop, by = "geo_value") %>%
   filter(time_value <= as.Date("2021-12-01")) %>%
   mutate(issue_date = as.Date(issue_date),
@@ -65,7 +65,7 @@ bl_mixed_5 = read.csv("../../predictions/bl_versioned_hhs_mixed.csv") %>%
   select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
          GT, mixed_pred, GT_norm_back, pred_norm_back)
 
-bl_mixed_10 = read.csv("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+bl_mixed_10 = read.csv("../../../predictions/bl_versioned_hhs_mixed.csv") %>%
   inner_join(us_pop, by = "geo_value") %>%
   filter(time_value <= as.Date("2021-12-01")) %>%
   mutate(issue_date = as.Date(issue_date),

@@ -30,7 +30,7 @@ us_pop = covidcast::state_census %>%
           filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
 
 
-bl_preds = vroom("../../predictions/oneshot_omicron.csv") %>%
+bl_preds = vroom("../../../predictions/oneshot_omicron.csv") %>%
   inner_join(us_pop, by = "geo_value") %>%
   filter(time_value >= as.Date("2021-12-01")) %>%
   mutate(issue_date = as.Date(issue_date),
