@@ -1,0 +1,156 @@
+---
+title: "figure_2_mod"
+output: html_document
+date: "2023-11-13"
+---
+
+# Purpose
+
+Figure 2: Aspects of feature quality.
+
+First column: $Cor(Y_s, I_{s - l}^s), Cor(Y_s, O_{s - l}^s)$
+Second column: $Cor(I_s^{s + 30}, I_s^{s + l}), Cor(Y_s, O_s^{s + l})$
+Third column: # of days with a missing claim / total number of days in burn-in
+
+```{r}
+library(tidyverse)
+library(vroom)
+library(epiprocess)
+library(gridExtra)
+
+# Load computed feature quality metrics
+nat_corr_w_ff = readRDS("../RDS/nat_corr_w_ff.rds")
+nat_corr_w_hosp = readRDS("../RDS/nat_corr_w_hosp.rds")
+nat_latency_mat = readRDS("../RDS/nat_latency_mat.rds")
+```
+
+# Manipulations
+
+```{r}
+merged_trio = nat_latency_mat %>%
+  group_by(backcast_lag) %>%
+  inner_join(nat_corr_w_hosp, by = "backcast_lag") %>%
+  inner_join(nat_corr_w_ff, by = "backcast_lag")
+
+in_mean_trio = merged_trio %>%
+  select(starts_with("in")) %>%
+  select(-contains("se"))
+
+in_se_trio = merged_trio %>%
+  select(starts_with("in")) %>%
+  select(contains("se"))
+
+out_mean_trio = merged_trio %>%
+  select(starts_with("out")) %>%
+  select(-contains("se"))
+
+out_se_trio = merged_trio %>%
+  select(starts_with("out")) %>%
+  select(contains("se"))
+```
+
+# Inpatient panel, latency instead of missing
+
+```{r}
+in_mean_trio_long <- in_mean_trio %>%
+  gather(key = "variable", value = "value", -backcast_lag) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "in_latency" = "Latency",
+      "in_cor_hosp" = "Cor with hospitalizations",
+      "in_cor_final" = "Cor with finalized signal"
+    )
+)
+
+in_se_trio_long <- in_se_trio %>%
+  gather(key = "variable", value = "se_value", -backcast_lag) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "in_se_lat" = "Latency",
+      "in_se_cor_hosp" = "Cor with hospitalizations",
+      "in_se_cor_final" = "Cor with finalized signal"
+    )
+)
+
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+in_trio_long = in_mean_trio_long %>%
+  group_by(backcast_lag) %>%
+  inner_join(in_se_trio_long, by = c("backcast_lag", "variable"))
+
+in_trio_plot = ggplot(in_trio_long, aes(x = backcast_lag, y = value)) +
+  scale_x_continuous(n.breaks = 6) +
+  scale_y_continuous(n.breaks = 6) +
+  geom_path(color = cbPalette[2], size = 1.2) +
+  xlab("") +
+  geom_ribbon(aes(x = backcast_lag, 
+    ymin = pmax(0, value - se_value), ymax = value + se_value), alpha = 0.4, fill = cbPalette[2]) +
+  # Manual reordering: https://www.statology.org/ggplot-facet-order/
+  facet_wrap(~factor(variable, levels = c("Cor with hospitalizations",
+    "Cor with finalized signal", "Latency")), scales = "free_y") +   
+  labs(title = "Inpatient", x = "Lag", y = "") +
+  theme(axis.title = element_text(size = 11),
+        plot.title = element_text(size = 12)) + theme_bw() 
+
+in_trio_plot
+```
+
+# Outpatient panel, Latency instead of missing 
+
+```{r}
+out_mean_trio_long <- out_mean_trio %>%
+  gather(key = "variable", value = "value", -backcast_lag) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "out_latency" = "Latency",
+      "out_cor_hosp" = "Cor with hospitalizations",
+      "out_cor_final" = "Cor with finalized signal"
+    )
+)
+
+out_se_trio_long <- out_se_trio %>%
+  gather(key = "variable", value = "se_value", -backcast_lag) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "out_se_lat" = "Latency",
+      "out_se_cor_hosp" = "Cor with hospitalizations",
+      "out_se_cor_final" = "Cor with finalized signal"
+    )
+)
+
+out_trio_long = out_mean_trio_long %>%
+  group_by(backcast_lag) %>%
+  inner_join(out_se_trio_long, by = c("backcast_lag", "variable"))
+
+out_trio_plot = ggplot(out_trio_long, aes(x = backcast_lag, y = value)) +
+  scale_x_continuous(n.breaks = 6) +
+  scale_y_continuous(n.breaks = 6) +
+  xlab("# of Days Lagged") +
+  geom_path(color = cbPalette[2], size = 1.2) +
+  geom_ribbon(aes(x = backcast_lag, 
+    ymin = pmax(0, value - se_value), ymax = value + se_value), alpha = 0.4, fill = cbPalette[2]) +
+  facet_wrap(~factor(variable, levels = c("Cor with hospitalizations",
+    "Cor with finalized signal", "Latency")), scales = "free_y") +   
+  labs(title = "Outpatient", x = "Lag", y = "") +
+  theme(axis.title = element_text(size = 11), 
+        plot.title = element_text(size = 12)) + theme_bw() 
+
+out_trio_plot
+```
+
+# Arrange two panels
+
+```{r}
+# Assuming in_trio_plot and out_trio_plot are already defined
+
+# Arrange the plots in two rows
+trio_merged = grid.arrange(in_trio_plot, out_trio_plot, nrow = 2)
+
+ggsave(plot = trio_merged, "../../../../paper/fig/new_feature_trio.pdf", 
+        width = 8, height = 6)
+```

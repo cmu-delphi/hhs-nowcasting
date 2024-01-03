@@ -1,0 +1,93 @@
+---
+title: "concordence_plots"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-05-11"
+---
+
+# Purpose
+
+Produce figure 1 in paper, concordance plot between $Y_t$ and $I_t^{(t)}$ and $I_t^{(t + 30)}.$
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(vroom)
+library(ggpubr)
+library(colorspace)
+```
+
+# Visualize california
+
+```{r}
+ca_finalized = readRDS("../RDS/ca_finalized.rds") %>%
+  filter(time_value <= as.Date("2021-12-01")) %>%
+  mutate(weekly_in_ratio = 100 * weekly_in_ratio) %>%
+  ungroup()
+
+ca_proper = readRDS("../RDS/ca_proper.rds") %>%
+  filter(time_value <= as.Date("2021-12-01")) %>%
+  mutate(weekly_in_ratio = 100 * weekly_in_ratio) %>%
+  ungroup()
+
+# Scale hospitalizations and inpatient signal
+trans = function(x, from_range, to_range) {
+  (x - from_range[1]) / (from_range[2] - from_range[1]) *
+    (to_range[2] - to_range[1]) + to_range[1]
+}
+
+inpat_range = ca_finalized %>%
+  select(weekly_in_ratio) %>%
+  range
+
+hosp_range = ca_finalized %>%
+  select(GT) %>%
+  range
+
+trans = function(x, from_range, to_range) {
+  (x - from_range[1]) / (from_range[2] - from_range[1]) *
+    (to_range[2] - to_range[1]) + to_range[1]
+}
+
+inpat_range = ca_finalized %>%
+  select(weekly_in_ratio) %>%
+  range
+
+hosp_range = ca_finalized %>%
+  select(GT) %>%
+  range
+
+# Scale inpatient rate to hosp and vice verse
+trans_rate_hosp = function(x) trans(x, inpat_range, hosp_range)
+trans_hosp_rate = function(x) trans(x, hosp_range, inpat_range)
+
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+vals = c("Real-time inpatient signal" = cbPalette[2],
+         "Finalized inpatient signal" = cbPalette[3],
+         "Reported hospitalizations" = cbPalette[7])
+
+ggplot(ca_finalized) +
+  geom_line(aes(x = time_value, y = GT, color = "Reported hospitalizations")) +
+  geom_line(aes(x = time_value, y = trans_rate_hosp(weekly_in_ratio), color = "Finalized inpatient signal")) +
+  geom_line(data = ca_proper, aes(x = time_value, y = trans_rate_hosp(weekly_in_ratio), 
+                                  color = "Real-time inpatient signal")) +
+  scale_y_continuous(name = "Reported COVID-19 hospitalizations", limits = hosp_range,
+                     sec.axis = sec_axis(trans = trans_hosp_rate, 
+                                         breaks = scales::pretty_breaks(n = 5),
+                                         name = "Percentage of COVID-associated inpatient claims")) +
+  labs(title = "Tracking hospitalizations in California",
+       x = "Date") +
+  scale_color_manual(name = "", values = vals) + theme_bw() +
+  scale_x_date(date_breaks = "2 month", date_labels = "%Y-%m") +
+  theme(legend.position = "bottom", 
+        legend.text = element_text(size = 11),
+        axis.title = element_text(size = 11),
+        plot.title = element_text(size = 12)) 
+
+ggsave("../../../../paper/fig/CA_concord.pdf", width = 8, height = 5)
+```
+
+

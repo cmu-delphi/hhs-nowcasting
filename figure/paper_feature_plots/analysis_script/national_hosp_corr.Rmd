@@ -1,0 +1,111 @@
+---
+title: "holdin_corr"
+author: "Xueda Shen, xs2"
+date: "2023-08-23"
+output: html_document
+---
+
+# Purpose 
+
+Compute national average of state level correlation of $Y_t$ and $I_{t - l}^{(t)};$ $Y_t$ and $O_{t - l}^{(t)}$
+
+# Read data
+
+
+```{r}
+library(vroom)
+library(tidyverse)
+```
+
+
+```{r}
+in_raw = readRDS("../../features_rds/in_raw.rds")
+out_raw = readRDS("../../features_rds/out_raw.rds")
+labels_hosp = readRDS("../../features_rds/labels_hosp.rds")
+
+
+uspop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          slice(., 2:(n() - 4))
+
+
+
+
+dat = in_raw %>%
+        filter(time_value <= as.Date("2021-03-31")) %>%
+        inner_join(select(out_raw, geo_value, time_value, issue_date, weekly_out_ratio),
+                   by = c("geo_value", "time_value", "issue_date")) %>%
+        inner_join(select(labels_hosp, geo_value, time_value, GT),
+                   by = c("geo_value", "time_value")) %>%
+        inner_join(uspop, by = "geo_value")
+
+
+
+remove(in_raw, out_raw)
+```
+
+
+
+
+# Correlation Plot
+
+```{r}
+corr_mat = matrix(nrow = 0, ncol = 4)
+
+for (i in seq(0, 20)) {
+  
+  
+  feat = dat %>%
+            select(geo_value, time_value, issue_date, weekly_in_ratio,
+                     weekly_out_ratio, GT) %>%
+            # Filter for $I_{s - l}^s$
+            filter(time_value == issue_date - i) %>%
+            select(geo_value, time_value, issue_date, weekly_in_ratio,
+                   weekly_out_ratio)
+  
+  hosp = dat %>%
+          filter(issue_date %in% feat$issue_date) %>%
+          # Filter for $Y_s$
+          filter(time_value == issue_date) %>%
+          rename(GT_issue_date = GT) %>%
+          select(geo_value, issue_date, GT_issue_date)
+  
+  # One issue date correspond to a lagged time value
+  feat_hosp = feat %>%
+    inner_join(hosp, by = c("geo_value", "issue_date"))
+  
+  tmp = feat_hosp %>%
+    group_by(geo_value) %>%
+    summarise(in_cor = cor(weekly_in_ratio, GT_issue_date, 
+                           use = "complete.obs"),
+              out_cor = cor(weekly_out_ratio, GT_issue_date, 
+                            use = "complete.obs")) %>%
+    mutate(backcast_lag = i)
+
+  corr_mat = rbind(corr_mat, tmp)
+  
+}
+
+
+
+
+
+nat_corr_w_hosp = corr_mat %>%
+  ungroup() %>%
+  # filter(backcast_lag <= 10) %>%
+  group_by(backcast_lag) %>%
+  summarise(in_cor_hosp = mean(in_cor),
+            in_se_cor_hosp = sd(in_cor) / sqrt(50),
+            out_cor_hosp = mean(out_cor),
+            out_se_cor_hosp = sd(out_cor) / sqrt(50))
+
+
+saveRDS(nat_corr_w_hosp, file = "../RDS/nat_corr_w_hosp.rds")
+
+```
+
+
+

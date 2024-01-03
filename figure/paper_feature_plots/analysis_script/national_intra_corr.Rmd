@@ -1,0 +1,97 @@
+---
+title: "corr_with_final"
+output: html_document
+date: "2023-11-15"
+---
+
+
+
+# Purpose
+
+We replace MAPE with $Cor(I_s^{s + l}, I_s^{s + 30})$ and $Cor(O_s^{s + l}, O_s^{s + 30})$
+
+
+# Read data
+
+```{r}
+library(vroom)
+library(tidyverse)
+```
+
+```{r}
+in_raw = readRDS("../../features_rds/in_raw.rds")
+out_raw = readRDS("../../features_rds/out_raw.rds")
+labels_hosp = readRDS("../../features_rds/labels_hosp.rds")
+
+
+
+
+uspop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          slice(., 2:(n() - 4))
+
+
+
+
+dat = in_raw %>%
+        # Stay in burn-in set 
+        filter(time_value <= as.Date("2021-03-31")) %>%
+        inner_join(select(out_raw, geo_value, time_value, issue_date, weekly_out_ratio),
+                   by = c("geo_value", "time_value", "issue_date")) %>%
+        inner_join(uspop, by = "geo_value")
+
+
+remove(in_raw, out_raw)
+```
+
+
+```{r}
+versioned_signal = dat %>%
+  filter(backcast_lag <= 10) %>%
+  select(geo_value, time_value, issue_date,
+         backcast_lag,
+         weekly_in_ratio, weekly_out_ratio)
+
+
+finalized_signal = dat %>%
+  filter(issue_date == time_value + 30) %>%
+  rename(finalized_in = weekly_in_ratio,
+         finalized_out = weekly_out_ratio) %>%
+  select(geo_value, time_value, finalized_in, finalized_out)
+
+
+
+versioned_signal = versioned_signal %>%
+  inner_join(finalized_signal, by = c("geo_value", "time_value")) 
+```
+
+
+```{r}
+state_cor_w_ff = versioned_signal %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(in_corr_w_f = cor(weekly_in_ratio, finalized_in,
+                              use = "complete.obs"),
+            out_corr_w_f = cor(weekly_out_ratio, finalized_out,
+                               use = "complete.obs")) %>%
+  # NA because of 0 sd, means signals exceptionally bad
+  # Replace with 0 
+  mutate(in_corr_w_f = replace_na(in_corr_w_f, 0),
+    out_corr_w_f = replace_na(out_corr_w_f, 0)) %>%
+  arrange(geo_value, backcast_lag)
+
+nat_corr_w_ff = state_cor_w_ff %>%
+  group_by(backcast_lag) %>%
+  summarise(in_cor_final = mean(in_corr_w_f),
+            in_se_cor_final = sd(in_corr_w_f) / sqrt(50),
+            out_cor_final = mean(out_corr_w_f),
+            out_se_cor_final = sd(out_corr_w_f) / sqrt(50))
+
+saveRDS(nat_corr_w_ff, file = "../RDS/nat_corr_w_ff.rds")
+```
+
+
+
+

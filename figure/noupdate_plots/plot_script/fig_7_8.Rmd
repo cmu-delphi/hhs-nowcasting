@@ -1,0 +1,78 @@
+---
+title: "ana_uncon_mixed"
+output: html_document
+date: "2023-05-22"
+---
+
+# Purpose
+
+Figure 7, 8
+
+# Read data
+
+```{r}
+library(tidyverse)
+library(ggnewscale)
+library(simplecolors)
+library(ggpubr)
+library(colorspace)
+```
+
+# Big Lag
+
+```{r}
+bl_oneshot_mixed = readRDS("../RDS/bl_oneshot_mixed.rds")
+bl_oneshot_state = readRDS("../RDS/bl_oneshot_state.rds")
+bl_oneshot_national = readRDS("../RDS/bl_oneshot_national.rds")
+```
+
+# State Level Nowcasts
+
+```{r, fig.width=12}
+gl = c("ca", "ny", "ky", "vt")
+pl = c()
+
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+fills = c("Reported hospitalizations" = cbPalette[1])
+colrs = c("Geo-pooled model" = cbPalette[7], "Mixed model" = cbPalette[4])
+
+for (state in gl) {
+  data_state = bl_oneshot_state %>%
+    filter(geo_value == state)
+  
+  data_mixed = bl_oneshot_mixed %>%
+    filter(geo_value == state)
+  
+  data_national = bl_oneshot_national %>%
+    filter(geo_value == state)
+  
+  p1 = ggplot(data_state, aes(x = time_value, y = GT_norm_back)) +
+    geom_bar(stat = "identity", aes(fill = "Reported hospitalizations"), alpha = 0.7) +
+    geom_line(data = data_mixed, aes(x = time_value, y = mixed_norm_back, color = "Mixed model"), 
+              linewidth = 0.75) +
+    geom_line(data = data_national, aes(x = time_value, y = national_norm_back, color = "Geo-pooled model"), 
+              linewidth = 0.75, linetype = 2) +
+    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
+                 labels = scales::label_date_short()) +
+    geom_vline(data = tibble(
+      x = seq.Date(as.Date("2021-04-01"),
+                   as.Date("2021-12-01"), by = "month")), 
+      aes(xintercept = x), linewidth = 0.5, linetype = 2, col = cbPalette[2]) +
+    xlab("Date") +
+    ylab("COVID-19 hospitalizations") +
+    scale_color_manual(name = "", values = colrs) +
+    scale_fill_manual(name = "", values = fills) +
+    labs(title = paste("Hospitalization nowcasts in", toupper(state))) +
+    new_scale_color() + 
+    theme(legend.position = "bottom", 
+          plot.title = element_text(size = 12),
+          legend.text = element_text(size = 11)) + theme_bw()
+    
+  pl = c(pl, list(p1))
+}
+
+ggarrange(plotlist = pl[-2], nrow = 3, common.legend = TRUE, legend = "bottom")
+ggsave("../../../../paper/fig/no_update_examples.pdf", width = 8, height = 9)
+```

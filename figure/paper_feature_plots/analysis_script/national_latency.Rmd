@@ -1,0 +1,95 @@
+---
+title: "latency_calculation"
+output: html_document
+date: "2023-11-10"
+---
+
+
+# Purpose
+
+Latency is defined as the number of days where we do not recieve a claim signal on THAT DAY. We compute this 
+latency over the burn-in period. 
+
+
+```{r}
+library(tidyverse)
+library(vroom)
+library(epiprocess)
+```
+
+
+```{r}
+in_raw = readRDS("../../features_rds/in_raw.rds")
+out_raw = readRDS("../../features_rds/out_raw.rds")
+```
+
+
+
+
+# Latency: count rows where `value_covid` is a NA
+
+```{r}
+lags = seq(0, 20)
+
+in_latency_state = matrix(nrow = 0, ncol = 3)
+
+
+for (l in lags) {
+  
+  tmp = in_raw %>%
+    group_by(geo_value) %>%
+    filter(backcast_lag == l) %>%
+    summarise(num_obs = n(), num_mis = sum(is.na(value_covid))) %>%
+    mutate(backcast_lag = l) %>%
+    mutate(latency = num_mis / num_obs)
+
+  in_latency_state = rbind(in_latency_state, tmp)
+  
+}
+
+
+in_latency_nat = in_latency_state %>%
+  ungroup() %>%
+  group_by(backcast_lag) %>%
+  summarise(in_latency = mean(latency),
+         in_se_lat = sd(latency) / sqrt(50))
+
+
+
+
+out_latency_state = matrix(nrow = 0, ncol = 3)
+
+for (l in lags) {
+  
+  tmp = out_raw %>%
+    group_by(geo_value) %>%
+    filter(backcast_lag == l) %>%
+    summarise(num_obs = n(), num_mis = sum(is.na(value_covid))) %>%
+    mutate(backcast_lag = l) %>%
+    mutate(latency = num_mis / num_obs)
+    
+  out_latency_state = rbind(out_latency_state, tmp)
+}
+
+out_latency_nat = out_latency_state %>%
+  ungroup() %>%
+  group_by(backcast_lag) %>%
+  summarise(out_latency = mean(latency),
+            out_se_lat = sd(latency) / sqrt(50))
+
+
+
+nat_latency_mat = in_latency_nat %>%
+  group_by(backcast_lag) %>%
+  inner_join(out_latency_nat, by = "backcast_lag") %>%
+  filter(backcast_lag <= 10)
+
+saveRDS(nat_latency_mat, file = "../RDS/nat_latency_mat.rds")
+
+```
+
+
+
+
+
+

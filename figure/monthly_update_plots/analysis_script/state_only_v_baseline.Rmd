@@ -1,0 +1,177 @@
+---
+title: "state_only_v_baseline"
+author: "Xueda Shen, xs2"
+date: "2023-08-30"
+output: html_document
+---
+
+# Purpose
+
+We compute errors of state-only model against the baselines during the monthly update peroid.
+
+# Read data
+
+```{r}
+library(assertr)
+library(comprehenr)
+library(epidatr)
+library(epiprocess)
+library(broom)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggnewscale)
+library(vroom)
+library(simplecolors)
+library(ggpubr)
+library(eply)
+library(colorspace)
+```
+
+
+```{r}
+us_pop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
+
+uncon_state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+  filter(time_value <= as.Date("2021-12-01")) %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+  filter(backcast_lag <= 10) %>%
+  rowwise() %>%
+  mutate(state_fit = max(0, state_fit)) %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(pred_norm_back = state_fit * pop / 10^5) %>%
+  select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, GT, 
+         state_fit, GT_norm_back, pred_norm_back)
+
+
+flat_base = vroom("../../predictions/base_last_month_mean.csv") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  filter(time_value <= as.Date("2021-12-01")) %>%
+  mutate(backcast_lag = 0) %>%
+  rowwise() %>%
+  mutate(hat_mean_rate = hat_mean / pop * 10^5) %>%
+  mutate(GT_normed = GT / pop * 10^5) %>%
+  select(geo_value, time_value, backcast_lag, GT, GT_normed, hat_mean, hat_mean_rate)
+
+linear_proj_base = vroom("../../predictions/base_linear_proj.csv") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  filter(time_value >= as.Date("2021-04-01") & 
+           time_value <= as.Date("2021-12-01")) %>%
+  mutate(backcast_lag = 0) %>%
+  rowwise() %>%
+  mutate(hat_lp_rate = hat_linear_proj / pop * 10^5) %>%
+  mutate(GT_normed = GT / pop * 10^5) %>%
+  select(geo_value, time_value, backcast_lag, GT, GT_normed, hat_linear_proj, hat_lp_rate)
+```
+
+
+# Compute errors
+
+```{r}
+mae_autoreg_rate = uncon_state_pred %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(MAE_Rate = mean(abs(GT - state_fit), na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(rMAE = mean(MAE_Rate),
+            se = sd(MAE_Rate) / sqrt(50))
+
+mae_flat_rate = flat_base %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(MAE_flat_rate = mean(abs(GT_normed - hat_mean_rate))) %>%
+  group_by(backcast_lag) %>%
+  summarise(fMAE = mean(MAE_flat_rate),
+            se = sd(MAE_flat_rate) / sqrt(50)) %>%
+  slice(rep(1:n(), 11)) %>%
+  mutate(backcast_lag = 0:10)
+
+mae_linear_proj_rate = linear_proj_base %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(MAE_lp_rate = mean(abs(GT_normed - hat_lp_rate))) %>%
+  group_by(backcast_lag) %>%
+  summarise(lMAE = mean(MAE_lp_rate),
+            se = sd(MAE_lp_rate) / sqrt(50)) %>%
+  slice(rep(1:n(), 11)) %>%
+  mutate(backcast_lag = 0:10)
+``` 
+
+
+```{r}
+mae_autoreg_count = uncon_state_pred %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(MAE_count = mean(abs(pred_norm_back - GT_norm_back), na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(mMAEC = mean(MAE_count),
+            se = sd(MAE_count) / sqrt(50))
+
+mae_flat_count = flat_base %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(MAE_flat_count = mean(abs(hat_mean - GT))) %>%
+  group_by(backcast_lag) %>%
+  summarise(fMAEC = mean(MAE_flat_count),
+            se = sd(MAE_flat_count) / sqrt(50)) %>%
+  slice(rep(1:n(), 11)) %>%
+  mutate(backcast_lag = 0:10)
+
+mae_linear_proj_count = linear_proj_base %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(MAE_lp_count = mean(abs(hat_linear_proj - GT))) %>%
+  group_by(backcast_lag) %>%
+  summarise(fMAEL = mean(MAE_lp_count),
+            se = sd(MAE_lp_count) / sqrt(50)) %>%
+  slice(rep(1:n(), 11)) %>%
+  mutate(backcast_lag = 0:10)
+
+
+```
+
+```{r}
+saveRDS(mae_autoreg_rate, "../RDS/mae_autoreg_rate.rds")
+saveRDS(mae_flat_rate, "../RDS/mae_flat_rate.rds")
+saveRDS(mae_linear_proj_rate, "../RDS/mae_linear_proj_rate.rds")
+saveRDS(mae_autoreg_count, "../RDS/mae_autoreg_count.rds")
+saveRDS(mae_flat_count, "../RDS/mae_flat_count.rds")
+saveRDS(mae_linear_proj_count, "../RDS/mae_linear_proj_count.rds")
+
+
+```
+
+
+
+# Proportion of variance explained
+
+
+```{r}
+pve_state = uncon_state_pred %>%
+  group_by(geo_value, backcast_lag) %>%
+  mutate(abs_res = abs(state_fit - GT)) %>%
+  summarise(pve = (var(GT) - mean(abs_res^2))/var(GT) ) %>%
+  group_by(backcast_lag) %>%
+  summarise(sPVE = mean(pve),
+            se = sd(pve) / sqrt(50))
+
+
+pve_flatline = flat_base %>%
+  group_by(geo_value, backcast_lag) %>%
+  mutate(abs_res = abs(hat_mean_rate - GT_normed)) %>%
+  summarise(pve =  (var(GT_normed) - mean(abs_res ^2))  / var (GT_normed) ) %>%
+  group_by(backcast_lag) %>%
+  summarise(sPVE = mean(pve),
+            se = sd(pve) / sqrt(50))
+
+
+pve_lp = linear_proj_base %>%
+  group_by(geo_value, backcast_lag) %>%
+  mutate(abs_res = abs(hat_lp_rate - GT_normed)) %>%
+  summarise(pve =  (var(GT_normed) - mean(abs_res^2)) / var(GT_normed) ) %>%
+  group_by(backcast_lag) %>%
+  summarise(sPVE = mean(pve),
+            se = sd(pve) / sqrt(50))
+
+```
+

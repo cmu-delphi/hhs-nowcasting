@@ -1,0 +1,163 @@
+---
+title: "quantile_comp"
+author: "Xueda Shen, xs2"
+date: "2023-12-22"
+output: html_document
+---
+
+We compute the 25, 50, 75 quantiles of state-level and ablated models。
+
+
+# Read data
+
+```{r}
+library(tidyverse)
+library(vroom)
+
+us_pop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
+
+state_level_1 = vroom("../predictions/bl_versioned_hhs_mixed.csv") %>%
+  select(geo_value, time_value, issue_date, state_fit, GT)
+
+state_level_2 = vroom("../predictions/oneshot_omicron.csv") %>%
+  select(geo_value, time_value, issue_date, state_fit, GT)
+
+
+state_level = rbind(state_level_1, state_level_2) %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  mutate(GT_normed_back = GT * pop / 10^5) %>%
+  rowwise() %>%
+  mutate(state_fit_back = max(0, state_fit * pop / 10^5)) %>%
+  mutate(backcast_lag = as.numeric(time_value - issue_date)) %>%
+  mutate(res_count = abs(GT_normed_back - state_fit_back),
+         res_rate = abs(GT - state_fit)) %>%
+  filter(backcast_lag <= 10)
+
+remove(state_level_1, state_level_2)
+
+all_past = vroom("../predictions/aba_allpast.csv") %>%
+  select(geo_value, time_value, issue_date, state_fit, GT) %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  rowwise() %>%
+  mutate(GT_normed_back = GT * pop / 10^5) %>%
+  mutate(state_fit_back = max(0, state_fit) * pop / 10^5) %>%
+  mutate(backcast_lag = as.numeric(time_value - issue_date)) %>%
+  mutate(res_count = abs(GT_normed_back - state_fit_back),
+         res_rate = abs(GT - state_fit)) %>%
+  filter(backcast_lag <= 10)
+
+
+two_month = vroom("../predictions/aba_noup_twomonth.csv") %>%
+  select(geo_value, time_value, issue_date, state_fit, GT) %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  rowwise() %>%
+  mutate(GT_normed_back = GT * pop / 10^5) %>%
+  mutate(state_fit_back = max(0, state_fit) * pop / 10^5) %>%
+  mutate(backcast_lag = as.numeric(time_value - issue_date)) %>%
+  mutate(res_count = abs(GT_normed_back - state_fit_back),
+         res_rate = abs(GT - state_fit)) %>%
+  filter(backcast_lag <= 10)
+
+
+inpat = vroom("../predictions/aba_noup_inpat_merged.csv") %>%
+  select(geo_value, time_value, issue_date, state_fit, GT) %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  rowwise() %>%
+  mutate(GT_normed_back = GT * pop / 10^5) %>%
+  mutate(state_fit_back = max(0, state_fit) * pop / 10^5) %>%
+  mutate(backcast_lag = as.numeric(time_value - issue_date)) %>%
+  mutate(res_count = abs(GT_normed_back - state_fit_back),
+         res_rate = abs(GT - state_fit)) %>%
+  filter(backcast_lag <= 10)
+
+
+outpat = vroom("../predictions/aba_outpat_merged.csv") %>%
+  select(geo_value, time_value, issue_date, state_fit, GT) %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  rowwise() %>%
+  mutate(GT_normed_back = GT * pop / 10^5) %>%
+  mutate(state_fit_back = max(0, state_fit) * pop / 10^5) %>%
+  mutate(backcast_lag = as.numeric(time_value - issue_date)) %>%
+  mutate(res_count = abs(GT_normed_back - state_fit_back),
+         res_rate = abs(GT - state_fit)) %>%
+  filter(backcast_lag <= 10)
+```
+
+
+# Quantiles, MAE counts
+
+```{r}
+
+all_past_count = all_past %>%
+  ungroup() %>%
+  summarise(res = quantile(res_count, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(all_past_count)
+
+two_month_count = two_month %>%
+  ungroup() %>%
+  summarise(res = quantile(res_count, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(two_month_count)
+
+state_level_count = state_level %>%
+  ungroup() %>%
+  summarise(res = quantile(res_count, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(state_level_count)
+
+
+inpat_count = inpat %>%
+  ungroup() %>%
+  summarise(res = quantile(res_count, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(inpat_count)
+
+outpat_count = outpat %>%
+  ungroup() %>%
+  summarise(res = quantile(res_count, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(outpat_count)
+
+```
+
+# Quantile rates
+
+
+```{r}
+all_past_rate = all_past %>%
+  ungroup() %>%
+  summarise(res = quantile(res_rate, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(all_past_rate)
+
+two_month_rate = two_month %>%
+  ungroup() %>%
+  summarise(res = quantile(res_rate, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(two_month_rate)
+
+state_level_rate = state_level %>%
+  ungroup() %>%
+  summarise(res = quantile(res_rate, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(state_level_rate)
+
+inpat_rate = inpat %>%
+  ungroup() %>%
+  summarise(res = quantile(res_rate, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(inpat_rate)
+
+outpat_rate = outpat %>%
+  ungroup() %>%
+  summarise(res = quantile(res_rate, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+
+print(outpat_rate)
+
+```

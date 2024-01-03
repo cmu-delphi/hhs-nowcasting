@@ -1,0 +1,140 @@
+---
+title: "vis_mixed_holdin"
+output: html_document
+date: "2023-10-10"
+---
+
+# Purpose
+
+We plot predictions from mixed model at backcast lag {0, 5, 10} during the monthly update period.
+
+# Read data
+
+```{r}
+library(assertr)
+library(comprehenr)
+library(epidatr)
+library(epiprocess)
+library(broom)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggnewscale)
+library(vroom)
+library(simplecolors)
+library(ggpubr)
+library(eply)
+library(colorspace)
+```
+
+# Big Lag
+
+```{r}
+us_pop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
+
+bl_mixed_now = read.csv("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  filter(time_value <= as.Date("2021-12-01")) %>%
+  mutate(issue_date = as.Date(issue_date),
+         time_value = as.Date(time_value)) %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+  filter(backcast_lag == 0) %>%
+  rowwise() %>%
+  mutate(mixed_pred = max(0, mixed_pred)) %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(pred_norm_back = mixed_pred * pop / 10^5) %>%
+  select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
+         GT, mixed_pred, GT_norm_back, pred_norm_back)
+
+bl_mixed_5 = read.csv("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  filter(time_value <= as.Date("2021-12-01")) %>%
+  mutate(issue_date = as.Date(issue_date),
+         time_value = as.Date(time_value)) %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+  filter(backcast_lag == 5) %>%
+  rowwise() %>%
+  mutate(mixed_pred = max(0, mixed_pred)) %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(pred_norm_back = mixed_pred * pop / 10^5) %>%
+  select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
+         GT, mixed_pred, GT_norm_back, pred_norm_back)
+
+bl_mixed_10 = read.csv("../../predictions/bl_versioned_hhs_mixed.csv") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  filter(time_value <= as.Date("2021-12-01")) %>%
+  mutate(issue_date = as.Date(issue_date),
+         time_value = as.Date(time_value)) %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+  filter(backcast_lag == 10) %>%
+  rowwise() %>%
+  mutate(mixed_pred = max(0, mixed_pred)) %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(pred_norm_back = mixed_pred * pop / 10^5) %>%
+  select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
+         GT, mixed_pred, GT_norm_back, pred_norm_back)
+```
+
+# State Level Nowcasts
+
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+fills = c("Actual Hospitalizations" = cbPalette[1])
+colrs = c("Lag 0" = cbPalette[7], "Lag 5" = cbPalette[4], "Lag 10" = cbPalette[3])
+pl = c()
+
+states = unique(bl_mixed_now$geo_value)
+for (state in states) {
+  data_now = bl_mixed_now %>%
+    filter(geo_value == state)
+  
+  data_5 = bl_mixed_5 %>%
+    filter(geo_value == state)
+  
+  data_10 = bl_mixed_10 %>%
+    filter(geo_value == state)
+  
+   p1 = ggplot(data_now, aes(x = time_value, y = GT_norm_back)) +
+    geom_bar(stat = "identity", aes(fill = "Reported hospitalizations"), alpha = 0.7) +
+    geom_line(aes(x = time_value, y = pred_norm_back, color = "Lag 0"), 
+              linewidth = 0.75) +    
+     geom_line(data = data_5, aes(x = time_value, y = pred_norm_back, color = "Lag 5"), 
+               linewidth = 0.75, linetype = 2) +
+     geom_line(data = data_10, aes(x = time_value, y = pred_norm_back, color = "Lag 10"), 
+               linewidth = 0.75, linetype = 3) +
+    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
+                 labels = scales::label_date_short()) +
+    geom_vline(data = tibble(
+      x = seq.Date(as.Date("2021-04-01"),
+                   as.Date("2021-12-01"), by = "month")), 
+      aes(xintercept = x), linewidth = 0.5, linetype = 2, col = cbPalette[2]) +
+    xlab("Date") +
+    ylab("COVID-19 hospitalizations") +
+    scale_color_manual(name = "", values = colrs) +
+    scale_fill_manual(name = "", values = fills) +
+    labs(title = paste("Hospitalization backcasts in", toupper(state))) +
+    new_scale_color() + 
+    theme(legend.position = "bottom", 
+          plot.title = element_text(size = 12),
+          legend.text = element_text(size = 11)) + theme_bw()
+    
+  pl = c(pl, list(p1))
+}
+```
+
+```{r}
+counter = 0
+for (i in seq(1, length(states)-1, by = 3)) {
+  counter = counter + 1
+  inds = i:min(i+2, length(states))
+  ggarrange(plotlist = pl[inds], nrow = 3, common.legend = TRUE, legend = "bottom")
+  ggsave(sprintf("../../../../paper/app_fig/monthly_update_all_%i.pdf", counter), 
+         width = 8, height = 9)
+}
+```

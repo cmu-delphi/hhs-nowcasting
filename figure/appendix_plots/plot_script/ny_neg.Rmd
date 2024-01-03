@@ -1,0 +1,273 @@
+---
+title: "ny_neg"
+output: html_document
+date: "2023-12-17"
+---
+
+# Purpose
+
+In this document we analyze what caused the nowcasts of state-level model for NY to be negative and hence thresholded at June. 
+
+# Read stored coefficents and features
+
+```{r, message=FALSE}
+library(tidyverse)
+library(gridExtra)
+
+# Coefficients the month of June
+ny_state_coef = readRDS("../RDS/ny_model_coef.rds") %>%
+  filter(window_date >= as.Date("2021-05-31"))
+
+# Signal with time_value in June, test data
+ny_train_test_feat = readRDS("../RDS/ny_train_test_feat.rds")
+```
+
+We have seen the model only uses the most recent month of data. We thus inspect the revision concerning both inpatient and outpatient group of features.
+
+# Revision pattern
+
+```{r}
+ny_feat_may = ny_train_test_feat %>%
+  filter(time_value >= as.Date("2021-05-01") & time_value <= as.Date("2021-05-31"))
+
+ny_may_now = ny_feat_may %>%
+  filter(time_value == issue_date)
+
+ny_may_7 = ny_feat_may %>%
+  filter(issue_date == as.Date("2021-06-07"))
+
+ny_may_8 = ny_feat_may %>%
+  filter(issue_date == as.Date("2021-06-08"))
+
+ny_may_30 = ny_feat_may %>%
+  filter(issue_date == as.Date("2021-06-30"))
+
+ny_may_final = ny_feat_may %>%
+  filter(issue_date == time_value + 30)
+
+ny_feat_june = ny_train_test_feat %>%
+  filter(time_value >= as.Date("2021-06-01") & time_value <= as.Date("2021-06-30"))
+
+ny_june_now = ny_feat_june %>%
+  filter(time_value == issue_date)
+
+ny_june_final = ny_feat_june %>%
+  filter(issue_date == time_value + 30)
+```
+
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+vals = c("Real-time" = cbPalette[7],
+         "Finalized" = cbPalette[3])
+
+ggplot(ny_june_now) +
+  geom_path(aes(x = time_value, y = out_6, color = "Real-time"), 
+            linewidth = 1) +
+  geom_path(data = ny_june_final, aes(x = time_value, y = out_6, color = "Finalized"),
+            linewidth = 1) +
+  xlab("Time value") +
+  ylab("value") +
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal out_6 in June")
+
+ggplot(ny_june_now) +
+  geom_path(aes(x = time_value, y = out_13, color = "Real-time"), 
+            linewidth = 1) +
+  geom_path(data = ny_june_final, aes(x = time_value, y = out_13, color = "Finalized"),
+            linewidth = 1) +
+  xlab("Time value") +
+  ylab("value") + 
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal out_13 in June")
+
+
+ggplot(ny_june_now) +
+  geom_path(aes(x = time_value, y = out_20, color = "Real-time"), 
+            linewidth = 1) +
+  geom_path(data = ny_june_final, aes(x = time_value, y = out_20, color = "Finalized"),
+            linewidth = 1) +
+  xlab("Time value") +
+  ylab("value") +
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal out_20 in June")
+  
+```
+
+
+
+```{r}
+vals = c("June 7" = cbPalette[7],
+         "June 8" = cbPalette[3])
+
+
+
+p1 = ggplot(ny_may_7) +
+  geom_path(aes(x = time_value, y = out_6, color = "June 7"), 
+            linewidth = 1) +
+  geom_path(data = ny_may_8, aes(x = time_value, y = out_6, color = "June 8"),
+            linewidth = 1) +
+  xlab("Time Value") +
+  ylab("Value") +
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal value of out_6, May")
+
+
+p2 = ggplot(ny_may_7) +
+  geom_path(aes(x = time_value, y = out_13, color = "June 7"), 
+            linewidth = 1) +
+  geom_path(data = ny_may_8, aes(x = time_value, y = out_13, color = "June 8"),
+            linewidth = 1) +
+  xlab("Time Value") +
+  ylab("Value") +
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal value of out_13, May")
+
+
+p3 = ggplot(ny_may_7) +
+  geom_path(aes(x = time_value, y = out_20, color = "June 7"), 
+            linewidth = 1) +
+  geom_path(data = ny_may_8, aes(x = time_value, y = out_20, color = "June 8"),
+            linewidth = 1) +
+  xlab("Time Value") +
+  ylab("Value") +
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal value of out_20, May")
+
+
+
+cbd_plot = grid.arrange(p1, p2, p3, ncol = 1)
+
+ggsave(plot = cbd_plot, 
+       filename = "../../../../paper/app_fig/may_out_combined.pdf", width = 8, height = 15)
+
+
+
+ggsave(plot = p1, filename = "../../../../paper/app_fig/may_out_6.pdf", width = 8, height = 5)
+ggsave(plot = p2, filename = "../../../../paper/app_fig/may_out_13.pdf", width = 8, height = 5)
+ggsave(plot = p3, filename = "../../../../paper/app_fig/may_out_20.pdf", width = 8, height = 5)
+
+```
+
+
+
+
+```{r}
+vals = c("June 7" = cbPalette[7],
+         "June 8" = cbPalette[3])
+
+p1 = ggplot(ny_may_7) +
+  geom_path(aes(x = time_value, y = in_6, color = "June 7"), 
+            linewidth = 1) +
+  geom_path(data = ny_may_8, aes(x = time_value, y = in_6, color = "June 8"),
+            linewidth = 1) +
+  xlab("Time Value") +
+  ylab("Value") +
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal value of in_6, May")
+
+
+p2 = ggplot(ny_may_7) +
+  geom_path(aes(x = time_value, y = in_13, color = "June 7"), 
+            linewidth = 1) +
+  geom_path(data = ny_may_8, aes(x = time_value, y = in_13, color = "June 8"),
+            linewidth = 1) +
+  xlab("Time Value") +
+  ylab("Value") +
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal value of in_13, May")
+
+
+p3 = ggplot(ny_may_7) +
+  geom_path(aes(x = time_value, y = in_20, color = "June 7"), 
+            linewidth = 1) +
+  geom_path(data = ny_may_8, aes(x = time_value, y = in_20, color = "June 8"),
+            linewidth = 1) +
+  xlab("Time Value") +
+  ylab("Value") +
+  scale_color_manual(name = "Version of signal", values = vals) + theme_bw() +
+  ggtitle("Signal value of in_20, May")
+cbd_plot = grid.arrange(p1, p2, p3, ncol = 1)
+
+ggsave(plot = p1, filename = "../../../../paper/app_fig/may_in_6.pdf", width = 8, height = 5)
+ggsave(plot = p2, filename = "../../../../paper/app_fig/may_in_13.pdf", width = 8, height = 5)
+ggsave(plot = p3, filename = "../../../../paper/app_fig/may_in_20.pdf", width = 8, height = 5)
+```
+
+```{r}
+vals = c("As of June 7" = cbPalette[7],
+         "As of June 8" = cbPalette[3])
+
+dat = ny_train_test_feat |>
+  mutate(tv = time_value - 6, out = 100 * out_6) |>
+  select(tv, out, issue_date) |>
+  filter(between(tv, as.Date("2021-05-01"), as.Date("2021-05-31")),
+         issue_date %in% c(as.Date("2021-06-07"), as.Date("2021-06-08")))
+
+dat_june7 = dat |> filter(issue_date == as.Date("2021-06-07"))
+dat_june8 = dat |> filter(issue_date == as.Date("2021-06-08"))
+                          
+ggplot() +
+  geom_line(data = dat_june7, aes(x = tv, y = out, color = "As of June 7")) +
+  geom_line(data = dat_june8, aes(x = tv, y = out, color = "As of June 8")) +
+  labs(x = "Date", y = "Percentage of confirmed-COVID outpatient claims",
+       title = "Outpatient signals in New York") +
+  scale_color_manual(name = "", values = vals) + theme_bw() +
+  theme(legend.position = "right", 
+        legend.text = element_text(size = 11),
+        axis.title = element_text(size = 11),
+        plot.title = element_text(size = 12)) 
+
+ggsave("../../../../paper/app_fig/NY_outpatient.pdf", width = 8, height = 5)
+```
+
+# Contribution of coefficents
+
+```{r}
+contrib = ny_state_coef %>%
+  inner_join(ny_june_now, by = c("geo_value", "issue_date"),
+             suffix = c("_coef", "")) %>%
+  select(-window_date, -issue_date) %>%
+  mutate(in_6 = in_6_coef * in_6,
+         in_13 = in_13_coef * in_13,
+         in_20 = in_20_coef * in_20,
+         out_6 = out_6_coef * out_6,
+         out_13 = out_13_coef * out_13,
+         out_20 = out_20_coef * out_20,
+         in_contrib = in_6+ in_13 + in_20,
+         out_contrib = out_6 + out_13 + out_20) %>%
+  select(-matches("_coef"))
+
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+vals = c("intercept" = cbPalette[1],
+         "in_06" = cbPalette[2],
+         "in_13" = cbPalette[3],
+         "in_20" = cbPalette[4],
+         "out_06" = cbPalette[5],
+         "out_13" = cbPalette[6],
+         "out_20" = cbPalette[7])
+
+# vals_fact = factor(vals, levels = vals)
+
+ggplot(contrib, aes(x = time_value)) +
+  geom_path(aes(y = `(Intercept)`, color = "intercept")) +
+  geom_path(aes(y = in_6, color = "in_06")) +
+  geom_path(aes(y = in_13, color = "in_13")) +
+  geom_path(aes(y = in_20, color = "in_20")) +
+  geom_path(aes(y = out_6, color = "out_06")) +
+  geom_path(aes(y = out_13, color = "out_13")) +
+  geom_path(aes(y = out_20, color = "out_20")) +
+  labs(x = "Date", y = "Component value", title = "Nowcast components in New York") +
+  scale_color_manual(name = "", values = vals) + theme_bw() +  
+  theme(legend.position = "right", 
+        legend.text = element_text(size = 11),
+        axis.title = element_text(size = 11),
+        plot.title = element_text(size = 12)) 
+
+ggsave("../../../../paper/app_fig/NY_contrib.pdf", width = 8, height = 5)
+```
+
+

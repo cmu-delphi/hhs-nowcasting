@@ -1,0 +1,208 @@
+---
+title: "holdout_err"
+author: "Xueda Shen, xs2"
+date: "2023-08-31"
+output: html_document
+---
+
+# Purpose
+
+We compute backcast errors of all three of state, mixed and national model on the 
+holdout set. 
+
+
+
+# Read data
+
+```{r}
+library(tidyverse)
+library(vroom)
+```
+
+
+
+```{r}
+us_pop = covidcast::state_census %>%
+          select(ABBR, POPESTIMATE2019) %>%
+          rename(geo_value = ABBR) %>%
+          rename(pop = POPESTIMATE2019) %>%
+          mutate(geo_value = tolower(geo_value)) %>%
+          filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
+
+
+bl_preds = vroom("../../predictions/oneshot_omicron.csv") %>%
+  inner_join(us_pop, by = "geo_value") %>%
+  filter(time_value >= as.Date("2021-12-01")) %>%
+  mutate(issue_date = as.Date(issue_date),
+         time_value = as.Date(time_value)) %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+  filter(backcast_lag <= 10) %>%
+  rowwise() %>%
+  mutate(state_fit = max(0, state_fit)) %>%
+  mutate(mixed_pred = max(0, mixed_pred)) %>%
+  mutate(national_fit = max(0, national_fit)) %>%
+  mutate(GT_norm_back = GT * pop / 10^5) %>%
+  mutate(state_norm_back = state_fit * pop / 10^5) %>%
+  mutate(mixed_norm_back = mixed_pred * pop / 10^5) %>%
+  mutate(national_norm_back = national_fit * pop / 10^5) %>%
+  select(geo_value, time_value, issue_date, backcast_lag, optimal, staleness, 
+         GT, state_fit, mixed_pred, national_fit, GT_norm_back, state_norm_back,
+         mixed_norm_back, national_norm_back)
+
+
+bl_oneshot_mixed = bl_preds %>%
+  filter(backcast_lag == 0) %>%
+  filter(geo_value %in% c("ca", "ny", "ky", "vt")) %>%
+  select(geo_value, time_value, mixed_norm_back)
+
+bl_oneshot_state = bl_preds %>%
+  filter(backcast_lag == 0) %>%
+  filter(geo_value %in% c("ca", "ny", "ky", "vt")) %>%
+  select(geo_value, time_value, state_norm_back, GT_norm_back)
+
+
+bl_oneshot_national = bl_preds %>%
+  filter(backcast_lag == 0) %>%
+  filter(geo_value %in% c("ca", "ny", "ky", "vt")) %>%
+  select(geo_value, time_value, national_norm_back)
+
+saveRDS(bl_oneshot_mixed, "../RDS/bl_oneshot_mixed.rds")
+saveRDS(bl_oneshot_state, "../RDS/bl_oneshot_state.rds")
+saveRDS(bl_oneshot_national, "../RDS/bl_oneshot_national.rds")
+
+```
+
+
+
+
+# Mean absolute errors
+
+## MAE in Rate
+
+```{r}
+mae_state_rate = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maer = mean(abs(GT - state_fit), na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(s_MAE = mean(maer),
+            se = sd(maer) / sqrt(50))
+
+mae_mixed_rate = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maer = mean(abs(GT - mixed_pred), na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(m_MAE = mean(maer),
+            se = sd(maer) / sqrt(50))
+
+mae_national_rate = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maer = mean(abs(GT - national_fit), na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(n_MAE = mean(maer),
+            se = sd(maer) / sqrt(50))
+
+
+
+
+```
+
+
+
+# MAE in counts
+
+```{r}
+mae_state_count = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maec = mean(abs(GT_norm_back - state_norm_back),
+                        na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(s_MAE = mean(maec),
+            se = sd(maec) / sqrt(50))
+
+mae_mixed_count = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maec = mean(abs(GT_norm_back - mixed_norm_back),
+                        na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(m_MAE = mean(maec),
+            se = sd(maec) / sqrt(50))
+
+mae_national_count = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  summarise(maec = mean(abs(GT_norm_back - national_norm_back),
+                        na.rm = TRUE)) %>%
+  group_by(backcast_lag) %>%
+  summarise(n_MAE = mean(maec),
+            se = sd(maec) / sqrt(50))
+
+```
+
+
+
+# Prop Var Explained
+
+
+```{r}
+pve_state = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(!is.na(state_fit)) %>%
+  mutate(abs_res = state_fit - GT) %>%
+  summarise(pve = (var(GT) - mean(abs_res^2)) / var(GT)) %>%
+  group_by(backcast_lag) %>%
+  summarise(sPVE = mean(pve),
+            se = sd(pve) / sqrt(50))
+
+pve_national = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(!is.na(national_fit)) %>%
+  mutate(abs_res = national_fit - GT) %>%
+  summarise(pve = (var(GT) - mean(abs_res^2)) / var(GT)) %>%
+  group_by(backcast_lag) %>%
+  summarise(nPVE = mean(pve),
+            se = sd(pve) / sqrt(50))
+
+pve_mixed = bl_preds %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(!is.na(mixed_pred)) %>%
+  mutate(abs_res = mixed_pred - GT) %>%
+  summarise(pve = (var(GT) - mean(abs_res^2)) / var(GT)) %>%
+  group_by(backcast_lag) %>%
+  summarise(mPVE = mean(pve),
+            se = sd(pve) / sqrt(50))
+
+```
+
+
+
+
+```{r}
+saveRDS(mae_state_rate, "../RDS/mae_state_rate.rds")
+saveRDS(mae_mixed_rate, "../RDS/mae_mixed_rate.rds")
+saveRDS(mae_national_rate, "../RDS/mae_national_rate.rds")
+saveRDS(mae_state_count, "../RDS/mae_state_count.rds")
+saveRDS(mae_mixed_count, "../RDS/mae_mixed_count.rds")
+saveRDS(mae_national_count, "../RDS/mae_national_count.rds")
+
+saveRDS(pve_state, "../RDS/pve_state.rds")
+saveRDS(pve_mixed, "../RDS/pve_mixed.rds")
+saveRDS(pve_national, "../RDS/pve_national.rds")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
