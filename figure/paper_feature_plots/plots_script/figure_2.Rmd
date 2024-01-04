@@ -151,6 +151,6 @@ out_trio_plot
 # Arrange the plots in two rows
 trio_merged = grid.arrange(in_trio_plot, out_trio_plot, nrow = 2)
 
-ggsave(plot = trio_merged, "../../../../paper/fig/new_feature_trio.pdf", 
+ggsave(plot = trio_merged, "../../plots/section_2/new_feature_trio.pdf", 
         width = 8, height = 6)
 ```

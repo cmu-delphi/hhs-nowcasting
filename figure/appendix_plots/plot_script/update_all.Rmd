@@ -134,7 +134,7 @@ for (i in seq(1, length(states)-1, by = 3)) {
   counter = counter + 1
   inds = i:min(i+2, length(states))
   ggarrange(plotlist = pl[inds], nrow = 3, common.legend = TRUE, legend = "bottom")
-  ggsave(sprintf("../../../../paper/app_fig/monthly_update_all_%i.pdf", counter), 
+  ggsave(sprintf("../../plots/appendix/monthly_update_all_%i.pdf", counter), 
          width = 8, height = 9)
 }
 ```

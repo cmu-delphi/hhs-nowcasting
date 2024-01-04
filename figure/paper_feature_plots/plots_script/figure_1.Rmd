@@ -87,7 +87,7 @@ ggplot(ca_finalized) +
         axis.title = element_text(size = 11),
         plot.title = element_text(size = 12)) 
 
-ggsave("../../../../paper/fig/CA_concord.pdf", width = 8, height = 5)
+ggsave("../../plots/section_2/CA_concord.pdf", width = 8, height = 5)
 ```
 
 

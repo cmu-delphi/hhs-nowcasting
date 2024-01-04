@@ -99,5 +99,5 @@ p2 = ggplot() +
   theme_bw()
 
 ggarrange(p1, p2, nrow = 1, common.legend = TRUE, legend = "bottom")
-ggsave("../../../../paper/fig/no_update_mae.pdf", width = 9, height = 4.5)
+ggsave("../../plots/section_3/no_update_mae.pdf", width = 9, height = 4.5)
 ```

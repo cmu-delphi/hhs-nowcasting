@@ -7,7 +7,7 @@ output: html_document
 
 # Purpose
 
-We plot nowcasts (backcasts at lag 5?) from different models
+We plot nowcasts  from different models
 
 
 # Read data
@@ -77,8 +77,8 @@ for (state in gl) {
 }
 
 ggarrange(plotlist = pl[-2], nrow = 3, common.legend = TRUE, legend = "bottom")
-ggsave("../../../../paper/fig/monthly_update_examples.pdf", width = 8, height = 9)
+ggsave("../../plots/section_3/monthly_update_examples.pdf", width = 8, height = 9)
 
 ggarrange(plotlist = pl[2], nrow = 1, common.legend = TRUE, legend = "bottom")
-ggsave("../../../../paper/fig/monthly_update_failure.pdf", width = 8, height = 3.25)
+ggsave("../../plots/section_3/monthly_update_failure.pdf", width = 8, height = 3.25)
 ```

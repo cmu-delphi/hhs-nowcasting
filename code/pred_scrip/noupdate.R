@@ -1,5 +1,5 @@
 "
-Script for producing predictions: no update hypothetical.
+Scenario 2: No further hospitalizations recieved after Dec 1, 2021 
 "
 
 source("assets_noupdate/data_load.R")
@@ -7,11 +7,6 @@ source("assets_noupdate/unconstrained_state_level_big_lag.R")
 source("assets_noupdate/unconstrained_national_level_bl.R")
 
 
-"
-One shot for omicron and after, only retrain 30 days after start
-As we consider every signal entry issued after that to be fixed
-No recieving labels on or after 2021-12-01
-"
 
 omi_start = as.Date("2021-11-30")
 end_date = as.Date("2023-08-01")
@@ -29,6 +24,7 @@ back_2 = c()
 val_frame = c()
 val_gamma = c()
 
+
 # Still need to iterate through all dates, with the exception of no retraining after
 # 30 days of beginning of start of omicron
 # NOTE: Still need to produce backcasts
@@ -39,7 +35,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
 
   if (d <= omi_start + 30) {
     
-    # Train end is always the same in oneshot setting
+    # Train end is always the same in scenario 2
     train_end = omi_start - vl * cadence
     test_start = omi_start + 1
     
@@ -61,9 +57,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     stopifnot(state_val_frame$time_value <= as.Date(test_start, "1970-01-01"))
     
     
-    # Select FV gamma and retrain
-    # Two levels: state and national level
-    # No more subsetting: `produce_fv` only produces 2 months of FV data
+    # Select FV gamma and retrain, both state-level and geo-pooled
     state_val_gamma = state_val_frame %>%
       group_by(geo_value, gamma) %>%
       summarise(MAE = mean(abs(.resid))) %>%
@@ -81,17 +75,17 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     
     # Refit, this time using all the data, with `omi_start` as cutoff
     # Becuase no future labels are made available to us
-    # State level
+    ## State level data
     state_train = state_get_train_ar(omi_start, version) %>%
       group_by(geo_value) %>%
       merge(state_val_gamma, by = "geo_value")
     
+    ## National level data
     national_train = national_get_train_ar(omi_start, version) %>%
       ungroup() %>%
       mutate(ng = national_gamma$gamma)
     
-    
-    # We have changed our model to be autoregressive
+    ## Refit, state-level and geo-pooled
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
       do(model = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
@@ -103,7 +97,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
                     data = national_train)
     
     
-        # After selection and retrain, store the models with `geo_value` and `issue_date`
+    # After selection and retrain, store the models with `geo_value` and `issue_date`
     # It is important to store the RETRAINED coefficents
     state_selected_tmp = state_selected_models %>%
       group_by(geo_value) %>%
@@ -112,9 +106,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
     
     state_model_coef = rbind(state_model_coef, state_selected_tmp)
     
-    # national_selected_tmp = national_selected_models %>%
-    #   summarise(~ bind_rows(coef(national_selected_models))) %>%
-    #   mutate(issue_date = as.Date(version, "1970-01-01"))
+
     
     national_model_coef = rbind(national_model_coef, c(national_selected_models$coefficients, 
       as.Date(version, "1970-01-01")))
@@ -189,17 +181,19 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
   
   else {
     
+    # After 30 days, all signales considerd finalized. 
+    # Freeze models and just predict. 
+    
     version = as.Date(d, "1970-01-01")
     
     print(as.Date(d, "1970-01-01"))
     
-    # 30 days later, everything is now considered to be finalized
-    # No more retraining now
+
     state_test = state_get_test_oneshot_impute(version)
     national_test = national_get_test_oneshot_impute(version)
 
-    
-    if(is.null(state_test)) {
+    # Exception handling: no data on nowcast date
+    if (is.null(state_test)) {
       
       next
       
@@ -239,6 +233,6 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
 }
 
 
-write.csv(back_2, "../predictions/oneshot_omicron.csv", row.names = FALSE)
+write.csv(back_2, "../../predictions/oneshot_omicron.csv", row.names = FALSE)
 
 

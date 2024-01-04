@@ -74,5 +74,5 @@ for (state in gl) {
 }
 
 ggarrange(plotlist = pl[-2], nrow = 3, common.legend = TRUE, legend = "bottom")
-ggsave("../../../../paper/fig/no_update_examples.pdf", width = 8, height = 9)
+ggsave("../../plots/section_3/no_update_examples.pdf", width = 8, height = 9)
 ```

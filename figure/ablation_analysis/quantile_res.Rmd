@@ -21,10 +21,10 @@ us_pop = covidcast::state_census %>%
           mutate(geo_value = tolower(geo_value)) %>%
           filter(!geo_value %in% c("as", "gu", "mp", "pr", "vi"))
 
-state_level_1 = vroom("../predictions/bl_versioned_hhs_mixed.csv") %>%
+state_level_1 = vroom("../../predictions/bl_versioned_hhs_mixed.csv") %>%
   select(geo_value, time_value, issue_date, state_fit, GT)
 
-state_level_2 = vroom("../predictions/oneshot_omicron.csv") %>%
+state_level_2 = vroom("../../predictions/oneshot_omicron.csv") %>%
   select(geo_value, time_value, issue_date, state_fit, GT)
 
 
@@ -40,7 +40,7 @@ state_level = rbind(state_level_1, state_level_2) %>%
 
 remove(state_level_1, state_level_2)
 
-all_past = vroom("../predictions/aba_allpast.csv") %>%
+all_past = vroom("../../predictions/aba_allpast.csv") %>%
   select(geo_value, time_value, issue_date, state_fit, GT) %>%
   inner_join(us_pop, by = "geo_value") %>%
   rowwise() %>%
@@ -52,7 +52,7 @@ all_past = vroom("../predictions/aba_allpast.csv") %>%
   filter(backcast_lag <= 10)
 
 
-two_month = vroom("../predictions/aba_noup_twomonth.csv") %>%
+two_month = vroom("../../predictions/aba_noup_twomonth.csv") %>%
   select(geo_value, time_value, issue_date, state_fit, GT) %>%
   inner_join(us_pop, by = "geo_value") %>%
   rowwise() %>%
@@ -64,7 +64,7 @@ two_month = vroom("../predictions/aba_noup_twomonth.csv") %>%
   filter(backcast_lag <= 10)
 
 
-inpat = vroom("../predictions/aba_noup_inpat_merged.csv") %>%
+inpat = vroom("../../predictions/aba_noup_inpat_merged.csv") %>%
   select(geo_value, time_value, issue_date, state_fit, GT) %>%
   inner_join(us_pop, by = "geo_value") %>%
   rowwise() %>%
@@ -76,7 +76,7 @@ inpat = vroom("../predictions/aba_noup_inpat_merged.csv") %>%
   filter(backcast_lag <= 10)
 
 
-outpat = vroom("../predictions/aba_outpat_merged.csv") %>%
+outpat = vroom("../../predictions/aba_outpat_merged.csv") %>%
   select(geo_value, time_value, issue_date, state_fit, GT) %>%
   inner_join(us_pop, by = "geo_value") %>%
   rowwise() %>%

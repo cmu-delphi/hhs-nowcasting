@@ -5,7 +5,7 @@ Ablation: Train only on inpatient features, weighted.
 
 
 "
-Monthly update portion
+Scenario 1
 "
 
 source("assets_inpat_monthlyup/data_load_inpat_mu.R")
@@ -42,17 +42,7 @@ dump_dates = dump_dates - 1
 for (window_date in dump_dates) {
   
   
-  # The part where we change things
-  # Here we will iterate through time points in prediction set + 30 days
-  # This means for all `time_value` in the test set, we would have `backcast_lag` 
-  # up to 30
-  # On day T before end of month, we will produce nowcast \hat{Y}_{T}^{(T)} and a 
-  # bunch of trailing nowcasts \hat{Y}_{< T}^{(T)}
-  # If at end of month, get feature for whole month with newer version 
-  # (`issue_date`) after end of month
-  # `window_date`: last observation before test set 
-  # that can be used to fit the model
-  # So `window_date` contains 60 days of validation data
+
   
   max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
   print(max_date)
@@ -133,7 +123,6 @@ for (window_date in dump_dates) {
       mutate(ng = national_gamma$gamma)
     
     
-    # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
       do(model = lm(GT ~ in_6 + in_13 + in_20, 
@@ -154,9 +143,6 @@ for (window_date in dump_dates) {
     
     state_model_coef = rbind(state_model_coef, state_selected_tmp)
     
-    # national_selected_tmp = national_selected_models %>%
-    #   summarise(~ bind_rows(coef(national_selected_models))) %>%
-    #   mutate(issue_date = as.Date(version, "1970-01-01"))
     
     national_model_coef = rbind(national_model_coef, c(national_selected_models$coefficients, 
       as.Date(version, "1970-01-01")))
@@ -229,7 +215,7 @@ for (window_date in dump_dates) {
 
 
 "
-No update part
+Scenario 2
 "
 
 source("assets_inpat_noup/data_load_inpat_noup.R")
@@ -315,7 +301,6 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
       mutate(ng = national_gamma$gamma)
     
     
-    # We have changed our model to be autoregressive
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
       do(model = lm(GT ~ in_6 + in_13 + in_20, 
@@ -464,7 +449,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
 }
 
 
-write.csv(back_2, "../../predictions/aba_noup_inpat_merged.csv", row.names = FALSE)
+write.csv(back_2, "../../../predictions/aba_noup_inpat_merged.csv", row.names = FALSE)
 
 
 
