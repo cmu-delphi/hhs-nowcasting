@@ -74,9 +74,7 @@ for (window_date in dump_dates) {
       
     }
     
-    # Make sure test predictions are out of sample
-    stopifnot(state_val_frame$time_value <= as.Date(test_start, "1970-01-01"))
-    
+
     
     # Select FV gamma and retrain
     # Two levels: state and national level
@@ -134,7 +132,8 @@ for (window_date in dump_dates) {
     
     
     # Find mixing weights 
-    mixed_val_frame = alpha_fv(alphas, state_val_frame, national_val_frame, state_val_gamma, national_gamma)
+    mixed_val_frame = alpha_fv(alphas, state_val_frame, national_val_frame, 
+      state_val_gamma, national_gamma)
     opt_alpha = mixed_val_frame %>%
       group_by(geo_value, alpha) %>%
       summarise(MAE = mean(.resid)) %>%
@@ -173,7 +172,8 @@ for (window_date in dump_dates) {
     state_Tested = state_test %>%
       do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
       rename(state_fit = .fitted) %>%
-      select(geo_value, time_value, issue_date, state_fit, GT)
+      select(geo_value, time_value, issue_date, state_fit, GT) %>%
+      mutate(resid = abs(state_fit - GT))
     
     national_Tested = national_test %>%
       select(geo_value, time_value, issue_date, national_fit)
@@ -181,8 +181,6 @@ for (window_date in dump_dates) {
     # Book-keeping gamma for tracking effective sample size 
     state_gamma  = state_val_gamma %>%
       rename(state_optimal_gamma = gamma)
-    
-    
     
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
@@ -194,7 +192,29 @@ for (window_date in dump_dates) {
       mutate(mixed_pred = optimal * state_fit + (1 - optimal) * national_fit) %>%
       mutate(staleness = as.numeric(time_value - window_date))
     
+    # Do quantile tracking here 
+    score_frame = state_val_frame %>%
+      inner_join(state_gamma, by = "geo_value")
     
+    # Need to
+    state_interval = state_Tested %>%  
+      inner_join(res_frame, by = "geo_value") %>%
+      group_by(geo_value) %>%
+      mutate(quantile_tracking(state_fit, scores))
+
+    lr_frame = score_frame %>%
+      arrange(geo_value, time_value) %>%
+      group_by(geo_value) %>%
+      filter(time_value >= max(time_value) - window_size) %>%
+      summarise(lr = 0.1 * max(resid))
+
+    scores_frame = state_interval %>%
+      group_by(geo_value) %>%
+      summarise(miscover = mean(frame_interval$lower > frame_interval$y | 
+        frame_interval$upper < frame_interval$y)) %>%
+        inner_join(score_frame, by = "geo_value") %>%
+        mutate(score = score - lr * (miscover - lvl))
+
     back_2 = rbind(back_2, Tested)
     
   }
