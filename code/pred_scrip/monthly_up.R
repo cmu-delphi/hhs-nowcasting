@@ -45,6 +45,7 @@ dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01
 dump_dates = dump_dates - 1
 
 # Iterate through update dates 
+# Iterate through update dates 
 for (window_date in dump_dates) {
   
   max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
@@ -212,8 +213,8 @@ for (window_date in dump_dates) {
       inner_join(state_score_frame, by = "geo_value") %>%
       inner_join(state_lr_frame, by = "geo_value") %>%
       group_by(geo_value) %>%
-      mutate(lower = pmax(state_fit - lr * scores, 0),
-            upper = pmax(state_fit  + lr * scores, 0))
+      mutate(lower = pmax(state_fit - scores, 0),
+            upper = pmax(state_fit  + scores, 0))
 
     state_interval_frame = rbind(state_interval_frame, state_intervals)
     back_2 = rbind(back_2, Tested)
@@ -225,14 +226,6 @@ for (window_date in dump_dates) {
   miscover_freq = state_intervals %>%
     group_by(geo_value) %>%
     summarise(update = mean(GT < lower | GT > upper) - miscover_lvl) 
-  
-  # Update scores
-  state_score_frame = state_score_frame %>%
-    inner_join(state_lr_frame, by = "geo_value") %>%
-    inner_join(miscover_freq, by = "geo_value") %>%
-    group_by(geo_value) %>%
-    mutate(scores = scores + lr * update)
-
   # Update learning rates
   state_lr_frame = state_interval_frame %>%
     group_by(geo_value) %>%
@@ -241,7 +234,17 @@ for (window_date in dump_dates) {
     filter(resid == max(resid)) %>%
     # Herustic of lr outlined in middle of page 6
     mutate(lr = 0.1 * resid) %>%
-    select(-resid, -time_value)
+    select(geo_value, lr) 
+  
+  # Update scores
+  state_score_frame = state_score_frame %>%
+    inner_join(state_lr_frame, by = "geo_value") %>%
+    inner_join(miscover_freq, by = "geo_value") %>%
+    group_by(geo_value) %>%
+    mutate(scores = scores + lr * update) %>%
+    select(geo_value, scores)
+
+
 }
 
 
