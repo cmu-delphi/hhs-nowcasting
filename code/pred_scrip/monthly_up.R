@@ -237,7 +237,7 @@ for (window_date in dump_dates) {
   state_updated_scores = state_score_frame %>%
     inner_join(state_lr_frame, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%
-    group_by(geo_value)
+    group_by(geo_value) %>%
     mutate(scores = scores + lr * update)
 }
 

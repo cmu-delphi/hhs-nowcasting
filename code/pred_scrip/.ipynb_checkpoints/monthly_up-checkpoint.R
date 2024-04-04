@@ -1,13 +1,12 @@
-## ------------------------------------------------------------------------------------------------------------------------------------------
+"
+Scenario 1: Recieving hospitalzations every 30 days 
+"
+
 source("assets_update/data_load.R")
 source("assets_update/unconstrained_state_level_big_lag.R")
 source("assets_update/unconstrained_national_level_big_lag.R")
 
 
-## ------------------------------------------------------------------------------------------------------------------------------------------
-"
-Code for mixing between unconstrained state level and unconstrained national level
-"
 
 gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
@@ -21,36 +20,33 @@ vl = 2
 back_2 = c()
 val_frame = c()
 val_gamma = c()
-
 max_lag = 19
 
 state_model_coef = c()
 national_model_coef = c()
 
+# Level of miscover c. 1 - c gives the desired coverage level. e.g., if you 
+# want 90% coverage, set miscover_lvl=0.1
+miscover_lvl = 0.4 
+# Initalize state level scores to be one for all geo_values
+state_score_frame = labels_hosp %>%
+  select(geo_value) %>%
+  distinct() %>%
+  mutate(scores = 1)
+# State level learning rates. To be initalized after first round of validation
+state_lr_frame = c()
+# Data frame for state level intervals
+state_interval_frame = c()
 
 dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
                as.Date("2021-07-01"), as.Date("2021-08-01"), as.Date("2021-09-01"),
-               as.Date("2021-10-01"), as.Date("2021-11-01"), as.Date("2021-12-01"),
-               as.Date("2022-01-01"), as.Date("2022-02-01"), as.Date("2022-03-01"),
-               as.Date("2022-04-01"), as.Date("2022-05-01"), as.Date("2022-06-01"),
-               as.Date("2022-07-01")) 
+               as.Date("2021-10-01"), as.Date("2021-11-01"), as.Date("2021-12-01")) 
 
 dump_dates = dump_dates - 1
 
+# Iterate through update dates 
 for (window_date in dump_dates) {
   
-  
-  # The part where we change things
-  # Here we will iterate through time points in prediction set + 30 days
-  # This means for all `time_value` in the test set, we would have `backcast_lag` 
-  # up to 30
-  # On day T before end of month, we will produce nowcast \hat{Y}_{T}^{(T)} and a 
-  # bunch of trailing nowcasts \hat{Y}_{< T}^{(T)}
-  # If at end of month, get feature for whole month with newer version 
-  # (`issue_date`) after end of month
-  # `window_date`: last observation before test set 
-  # that can be used to fit the model
-  # So `window_date` contains 60 days of validation data
   
   max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
   print(max_date)
@@ -61,22 +57,14 @@ for (window_date in dump_dates) {
     break
     
   }
+
   
-  # Iterating through test set 
-  # Adhering to hypothetical that we are not looking at
-  # predictions with backcast_lag = 30 for the entirety 
-  # of test set
+
   for (i in seq(1, min(50, max_date))) {
     
     
-    # In each day in test, we first calibrate
-    # Then produce
     
-    # Preparing for calibrating FV here.
-    # You are not observing new labels of hosp
-    # So you are training with updated versions of features
-    
-    # Subsetting so that we dont see val set 
+    # Every day we recieve updated features 
     train_end = window_date - vl * cadence 
     # Prevent intersection with previous test
     test_start = window_date + 1 
@@ -98,9 +86,18 @@ for (window_date in dump_dates) {
       
     }
     
-    # Make sure test predictions are out of sample
-    stopifnot(state_val_frame$time_value <= as.Date(test_start, "1970-01-01"))
-    
+    # Intialize state_lr_frame to be 0.1 * max absolute residuals 
+    if (window_date == dump_dates[1]) {
+      state_lr_frame = state_val_frame %>%
+        select(geo_value, time_value, .resid) %>%
+        mutate(.resid = abs(.resid)) %>%
+        rename(resid = .resid) %>%
+        filter(resid == max(resid)) %>%
+        # Herustic of lr outlined in middle of page 6
+        mutate(lr = 0.1 * resid) %>%
+        select(-resid, -time_value)
+    }
+
     
     # Select FV gamma and retrain
     # Two levels: state and national level
@@ -112,8 +109,6 @@ for (window_date in dump_dates) {
       filter(MAE == Min) %>%
       select(geo_value, gamma)
     
-    # Check if state gamma is unique
-    stopifnot(nrow(state_val_gamma) == length(unique(state_val_gamma$geo_value)))
     
     national_gamma = national_val_frame %>%
       group_by(gamma) %>%
@@ -122,8 +117,8 @@ for (window_date in dump_dates) {
       filter(MAE == Min) %>%
       select(gamma)
     
-    # Refit, this time using all the data, with `window_date` as cutoff
-    # State level
+    # Retrain state-level and geo-pooled model 
+    ## Using all available data
     state_train = state_get_train_ar(window_date, version) %>%
       group_by(geo_value) %>%
       merge(state_val_gamma, by = "geo_value")
@@ -132,8 +127,7 @@ for (window_date in dump_dates) {
       ungroup() %>%
       mutate(ng = national_gamma$gamma)
     
-    
-    # We have changed our model to be autoregressive
+    ## Retrain models 
     state_selected_models = state_train %>%
       group_by(geo_value) %>%
       do(model = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, 
@@ -153,19 +147,16 @@ for (window_date in dump_dates) {
       mutate(issue_date = as.Date(version, "1970-01-01"))
     
     state_model_coef = rbind(state_model_coef, state_selected_tmp)
-    
-    # national_selected_tmp = national_selected_models %>%
-    #   summarise(~ bind_rows(coef(national_selected_models))) %>%
-    #   mutate(issue_date = as.Date(version, "1970-01-01"))
-    
+
     national_model_coef = rbind(national_model_coef, c(national_selected_models$coefficients, 
       as.Date(version, "1970-01-01")))
     
     
     
     
-    # Find alphas now
-    mixed_val_frame = alpha_fv(alphas, state_val_frame, national_val_frame, state_val_gamma, national_gamma)
+    # Find mixing weights 
+    mixed_val_frame = alpha_fv(alphas, state_val_frame, national_val_frame, 
+      state_val_gamma, national_gamma)
     opt_alpha = mixed_val_frame %>%
       group_by(geo_value, alpha) %>%
       summarise(MAE = mean(.resid)) %>%
@@ -204,7 +195,8 @@ for (window_date in dump_dates) {
     state_Tested = state_test %>%
       do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
       rename(state_fit = .fitted) %>%
-      select(geo_value, time_value, issue_date, state_fit, GT)
+      select(geo_value, time_value, issue_date, state_fit, GT) %>%
+      mutate(resid = abs(state_fit - GT))
     
     national_Tested = national_test %>%
       select(geo_value, time_value, issue_date, national_fit)
@@ -212,8 +204,6 @@ for (window_date in dump_dates) {
     # Book-keeping gamma for tracking effective sample size 
     state_gamma  = state_val_gamma %>%
       rename(state_optimal_gamma = gamma)
-    
-    
     
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
@@ -225,17 +215,35 @@ for (window_date in dump_dates) {
       mutate(mixed_pred = optimal * state_fit + (1 - optimal) * national_fit) %>%
       mutate(staleness = as.numeric(time_value - window_date))
     
-    
+    # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
+    state_intervals = state_Tested %>%
+      inner_join(state_score_frame, by = "geo_value") %>%
+      inner_join(state_lr_frame, by = "geo_value") %>%
+      group_by(geo_value) %>%
+      mutate(lower = pmax(state_fit - lr * scores, 0),
+            upper = pmax(state_fit  + lr * scores, 0))
+
+    state_interval_frame = rbind(state_interval_frame, state_intervals)
     back_2 = rbind(back_2, Tested)
     
   }
   
+  # New data has been seen, update scores here 
+  # Compute miscoverage during last month
+  miscover_freq = state_intervals %>%
+    group_by(geo_value) %>%
+    summarise(update = mean(GT < lower | GT > upper) - miscover_lvl) 
   
-  
+  state_updated_scores = state_score_frame %>%
+    inner_join(state_lr_frame, by = "geo_value") %>%
+    inner_join(miscover_freq, by = "geo_value") %>%
+    group_by(geo_value) %>%
+    mutate(scores = scores + lr * update)
 }
 
 
-
-write.csv(back_2, "../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
+write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
+  row.names = FALSE)
+write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
 
 
