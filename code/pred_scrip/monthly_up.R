@@ -47,23 +47,16 @@ dump_dates = dump_dates - 1
 # Iterate through update dates 
 for (window_date in dump_dates) {
   
-  
   max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
   print(max_date)
   
-  
   if (max_date == 0) {
-    
     break
-    
   }
 
-  
 
   for (i in seq(1, min(50, max_date))) {
-    
-    
-    
+  
     # Every day we recieve updated features 
     train_end = window_date - vl * cadence 
     # Prevent intersection with previous test
@@ -86,18 +79,20 @@ for (window_date in dump_dates) {
       
     }
     
+    # Set learning rates of quantile tracker 
     # Intialize state_lr_frame to be 0.1 * max absolute residuals 
     if (window_date == dump_dates[1]) {
-      state_lr_frame = state_val_frame %>%
-        select(geo_value, time_value, .resid) %>%
-        mutate(.resid = abs(.resid)) %>%
-        rename(resid = .resid) %>%
-        filter(resid == max(resid)) %>%
-        # Herustic of lr outlined in middle of page 6
-        mutate(lr = 0.1 * resid) %>%
-        select(-resid, -time_value)
-    }
-
+      if (i == 1){
+        state_lr_frame = state_val_frame %>%
+          select(geo_value, time_value, .resid) %>%
+          mutate(.resid = abs(.resid)) %>%
+          rename(resid = .resid) %>%
+          filter(resid == max(resid)) %>%
+          # Herustic of lr outlined in middle of page 6
+          mutate(lr = 0.1 * resid) %>%
+          select(-resid, -time_value)
+      }
+    } 
     
     # Select FV gamma and retrain
     # Two levels: state and national level
@@ -150,10 +145,7 @@ for (window_date in dump_dates) {
 
     national_model_coef = rbind(national_model_coef, c(national_selected_models$coefficients, 
       as.Date(version, "1970-01-01")))
-    
-    
-    
-    
+  
     # Find mixing weights 
     mixed_val_frame = alpha_fv(alphas, state_val_frame, national_val_frame, 
       state_val_gamma, national_gamma)
@@ -234,11 +226,22 @@ for (window_date in dump_dates) {
     group_by(geo_value) %>%
     summarise(update = mean(GT < lower | GT > upper) - miscover_lvl) 
   
-  state_updated_scores = state_score_frame %>%
+  # Update scores
+  state_score_frame = state_score_frame %>%
     inner_join(state_lr_frame, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%
     group_by(geo_value) %>%
     mutate(scores = scores + lr * update)
+
+  # Update learning rates
+  state_lr_frame = state_interval_frame %>%
+    group_by(geo_value) %>%
+    # set lr to be max of a rolling past, see coomment after prop1
+    filter(time_value >= window_date - vl) %>%
+    filter(resid == max(resid)) %>%
+    # Herustic of lr outlined in middle of page 6
+    mutate(lr = 0.1 * resid) %>%
+    select(-resid, -time_value)
 }
 
 
