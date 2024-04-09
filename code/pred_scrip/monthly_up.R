@@ -52,7 +52,7 @@ for (window_date in dump_dates) {
   }
 
 
-  for (i in seq(1, min(50, max_date))) {
+  for (i in seq(1, 2)) {
   
     # Every day we recieve updated features 
     train_end = window_date - vl * cadence 
@@ -226,8 +226,11 @@ for (window_date in dump_dates) {
   # Compute miscoverage during last month
   # Compute coverage only over nowcasts
   # Adapt the update step to be mimicking doing 30 update steps at once 
+  last_month = as.Date(window_date) - 1
+  last_month = floor_date(last_month, "month")
+
   miscover_freq = state_intervals %>%
-    filter(time_value >= floor_date(as.Date(window_date, "1970-01-01") - 1), "month") %>%
+    filter(time_value >= last_month) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
     summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
@@ -254,8 +257,8 @@ for (window_date in dump_dates) {
 }
 
 
-write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
-  row.names = FALSE)
-write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
+# write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
+#   row.names = FALSE)
+# write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
 
 
