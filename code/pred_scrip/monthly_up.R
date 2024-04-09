@@ -227,7 +227,7 @@ for (window_date in dump_dates) {
   # Compute coverage only over nowcasts
   # Adapt the update step to be mimicking doing 30 update steps at once 
   miscover_freq = state_intervals %>%
-    filter(time_value >= floor_date(window_date - 1), "month") %>%
+    filter(time_value >= floor_date(as.Date(window_date, "1970-01-01") - 1), "month") %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
     summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
