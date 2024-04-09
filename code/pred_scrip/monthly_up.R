@@ -103,7 +103,6 @@ for (window_date in dump_dates) {
         # of the selected model over the burn-in set
         state_score_frame = state_val_frame %>%
           mutate(resid = abs(.resid)) %>%
-          filter(gamma == opt_gamma) %>%
           summarise(scores = quantile(resid, probs = 1 - miscover_lvl))
       }
     } 
