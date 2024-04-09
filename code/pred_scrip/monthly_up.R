@@ -28,11 +28,7 @@ national_model_coef = c()
 # Level of miscover c. 1 - c gives the desired coverage level. e.g., if you 
 # want 90% coverage, set miscover_lvl=0.1
 miscover_lvl = 0.4 
-# Initalize state level scores to be one for all geo_values
-state_score_frame = labels_hosp %>%
-  select(geo_value) %>%
-  distinct() %>%
-  mutate(scores = 1)
+
 # State level learning rates. To be initalized after first round of validation
 state_lr_frame = c()
 # Data frame for state level intervals
@@ -80,21 +76,6 @@ for (window_date in dump_dates) {
       
     }
     
-    # Set learning rates of quantile tracker 
-    # Intialize state_lr_frame to be 0.1 * max absolute residuals 
-    if (window_date == dump_dates[1]) {
-      if (i == 1){
-        state_lr_frame = state_val_frame %>%
-          select(geo_value, time_value, .resid) %>%
-          mutate(.resid = abs(.resid)) %>%
-          rename(resid = .resid) %>%
-          filter(resid == max(resid)) %>%
-          # Herustic of lr outlined in middle of page 6
-          mutate(lr = 0.1 * resid) %>%
-          select(-resid, -time_value)
-      }
-    } 
-    
     # Select FV gamma and retrain
     # Two levels: state and national level
     # No more subsetting: `produce_fv` only produces 2 months of FV data
@@ -104,8 +85,29 @@ for (window_date in dump_dates) {
       mutate(Min = min(MAE)) %>%
       filter(MAE == Min) %>%
       select(geo_value, gamma)
-    
-    
+
+    # Set learning rates of quantile tracker 
+    # Intialize state_lr_frame to be 0.1 * max absolute residuals 
+    if (window_date == dump_dates[1]) {
+      if (i == 1){
+        state_lr_frame = state_val_frame %>%
+          select(geo_value, time_value, .resid) %>%
+          group_by(geo_value) %>%
+          mutate(resid = abs(.resid)) %>%
+          filter(resid == max(resid)) %>%
+          mutate(lr = 0.1 * resid) %>%
+          # Herustic of lr outlined in middle of page 6
+          select(geo_value, lr)
+
+        # Initalize state level scores to be 1 - alpha quantile of the residual
+        # of the selected model over the burn-in set
+        state_score_frame = state_val_frame %>%
+          mutate(resid = abs(resid)) %>%
+          filter(gamma == opt_gamma) %>%
+          summarise(scores = quantile(resid, probs = 1 - miscover_lvl))
+      }
+    } 
+
     national_gamma = national_val_frame %>%
       group_by(gamma) %>%
       summarise(MAE = mean(abs(.resid))) %>%
@@ -223,9 +225,14 @@ for (window_date in dump_dates) {
   
   # New data has been seen, update scores here 
   # Compute miscoverage during last month
+  # Compute coverage only over nowcasts
+  # Adapt the update step to be mimicking doing 30 update steps at once 
   miscover_freq = state_intervals %>%
+    filter(time_value >= floor_date(window_date - 1), "month") %>%
+    filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
-    summarise(update = mean(GT < lower | GT > upper) - miscover_lvl) 
+    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
+  
   # Update learning rates
   state_lr_frame = state_interval_frame %>%
     group_by(geo_value) %>%
