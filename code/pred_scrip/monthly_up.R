@@ -257,8 +257,8 @@ for (window_date in dump_dates) {
 }
 
 
-# write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
-#   row.names = FALSE)
-# write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
+write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
+  row.names = FALSE)
+write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
 
 
