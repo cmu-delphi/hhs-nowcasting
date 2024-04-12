@@ -19,7 +19,7 @@ source("assets_update/unconstrained_national_level_big_lag.R")
 
 ```{r}
 
-gammas = signif(seq(0, 0.0625, length.out = 25), 3)
+gammas = 0
 alphas = signif(seq(0, 1, length.out = 51))
 
 cadence = 30
@@ -210,6 +210,8 @@ for (window_date in dump_dates) {
     state_gamma  = state_val_gamma %>%
       rename(state_optimal_gamma = gamma)
     
+    print(range(state_Tested$time_value))
+
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
       inner_join(opt_alpha, by = "geo_value") %>%
@@ -223,7 +225,6 @@ for (window_date in dump_dates) {
     # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
     state_intervals = state_Tested %>%
       inner_join(state_score_frame, by = "geo_value") %>%
-      inner_join(state_lr_frame, by = "geo_value") %>%
       group_by(geo_value) %>%
       mutate(lower = pmax(state_fit - scores, 0),
             upper = pmax(state_fit  + scores, 0))
@@ -237,8 +238,10 @@ for (window_date in dump_dates) {
   # Compute miscoverage during last month
   # Compute coverage only over nowcasts
   # Adapt the update step to be mimicking doing 30 update steps at once 
-  miscover_freq = state_intervals %>%
-    filter(time_value >= floor_date(as.Date(window_date, "1970-01-01") - 1), "month") %>%
+  last_month = floor_date(as.Date(window_date), "month")
+
+  miscover_freq = state_interval_frame %>%
+    filter(time_value >= last_month & time_value <= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
     summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
@@ -263,6 +266,7 @@ for (window_date in dump_dates) {
 
 
 }
+
 
 
 

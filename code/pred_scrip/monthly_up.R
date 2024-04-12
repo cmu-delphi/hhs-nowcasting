@@ -214,7 +214,6 @@ for (window_date in dump_dates) {
     # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
     state_intervals = state_Tested %>%
       inner_join(state_score_frame, by = "geo_value") %>%
-      inner_join(state_lr_frame, by = "geo_value") %>%
       group_by(geo_value) %>%
       mutate(lower = pmax(state_fit - scores, 0),
             upper = pmax(state_fit  + scores, 0))
@@ -228,11 +227,10 @@ for (window_date in dump_dates) {
   # Compute miscoverage during last month
   # Compute coverage only over nowcasts
   # Adapt the update step to be mimicking doing 30 update steps at once 
-  last_month = as.Date(window_date) - 1
-  last_month = floor_date(last_month, "month")
+  last_month = floor_date(as.Date(window_date), "month")
 
-  miscover_freq = state_intervals %>%
-    filter(time_value >= last_month) %>%
+  miscover_freq = state_interval_frame %>%
+    filter(time_value >= last_month & time_value <= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
     summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
