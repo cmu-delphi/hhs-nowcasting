@@ -41,7 +41,6 @@ dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01
 dump_dates = dump_dates - 1
 
 # Iterate through update dates 
-# Iterate through update dates 
 for (window_date in dump_dates) {
   
   max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
@@ -105,6 +104,7 @@ for (window_date in dump_dates) {
           summarise(scores = quantile(resid, probs = 1 - miscover_lvl))
       }
     } 
+
 
     national_gamma = national_val_frame %>%
       group_by(gamma) %>%
@@ -198,6 +198,7 @@ for (window_date in dump_dates) {
     state_gamma  = state_val_gamma %>%
       rename(state_optimal_gamma = gamma)
     
+
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
       inner_join(opt_alpha, by = "geo_value") %>%
@@ -214,22 +215,22 @@ for (window_date in dump_dates) {
       group_by(geo_value) %>%
       mutate(lower = pmax(state_fit - scores, 0),
             upper = pmax(state_fit  + scores, 0))
-
+    
     state_interval_frame = rbind(state_interval_frame, state_intervals)
-    back_2 = rbind(back_2, Tested)
-
     print(range(state_interval_frame$time_value))
-   
+    
+    back_2 = rbind(back_2, Tested)
+    
   }
   
-  # New data has been seen, update scores here 
+
+  # Between world, this month has ended, new data yet seen
+  # update scores here 
   # Compute miscoverage during last month
   # Compute coverage only over nowcasts
   # Adapt the update step to be mimicking doing 30 update steps at once 
-  last_month = floor_date(as.Date(window_date), "month")
-
   miscover_freq = state_interval_frame %>%
-    filter(time_value >= last_month & time_value <= as.Date(window_date)) %>%
+    filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
     summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
@@ -244,7 +245,7 @@ for (window_date in dump_dates) {
     mutate(lr = 0.1 * resid) %>%
     select(geo_value, lr) 
   
-  # Update scores
+
   state_score_frame = state_score_frame %>%
     inner_join(state_lr_frame, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%

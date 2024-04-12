@@ -19,7 +19,7 @@ source("assets_update/unconstrained_national_level_big_lag.R")
 
 ```{r}
 
-gammas = 0
+gammas = c(0, 0.001, 0.002)
 alphas = signif(seq(0, 1, length.out = 51))
 
 cadence = 30
@@ -51,7 +51,6 @@ dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01
 
 dump_dates = dump_dates - 1
 
-# Iterate through update dates 
 # Iterate through update dates 
 for (window_date in dump_dates) {
   
@@ -117,6 +116,7 @@ for (window_date in dump_dates) {
           summarise(scores = quantile(resid, probs = 1 - miscover_lvl))
       }
     } 
+
 
     national_gamma = national_val_frame %>%
       group_by(gamma) %>%
@@ -228,20 +228,22 @@ for (window_date in dump_dates) {
       group_by(geo_value) %>%
       mutate(lower = pmax(state_fit - scores, 0),
             upper = pmax(state_fit  + scores, 0))
-
+    
     state_interval_frame = rbind(state_interval_frame, state_intervals)
+    print(range(state_interval_frame$time_value))
+    
     back_2 = rbind(back_2, Tested)
     
   }
   
-  # New data has been seen, update scores here 
+  # Between world, this month has ended, new data yet seen
+  # update scores here 
   # Compute miscoverage during last month
   # Compute coverage only over nowcasts
   # Adapt the update step to be mimicking doing 30 update steps at once 
-  last_month = floor_date(as.Date(window_date), "month")
 
   miscover_freq = state_interval_frame %>%
-    filter(time_value >= last_month & time_value <= as.Date(window_date)) %>%
+    filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
     summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
@@ -256,16 +258,24 @@ for (window_date in dump_dates) {
     mutate(lr = 0.1 * resid) %>%
     select(geo_value, lr) 
   
-  # Update scores
+
   state_score_frame = state_score_frame %>%
     inner_join(state_lr_frame, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%
     group_by(geo_value) %>%
     mutate(scores = scores + lr * update) %>%
     select(geo_value, scores)
+  break
 
 
 }
+
+# 
+# write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
+#   row.names = FALSE)
+# write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
+# 
+# 
 
 
 
