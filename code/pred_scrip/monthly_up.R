@@ -45,7 +45,6 @@ dump_dates = dump_dates - 1
 for (window_date in dump_dates) {
   
   max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
-  print(max_date)
   
   if (max_date == 0) {
     break
@@ -199,8 +198,6 @@ for (window_date in dump_dates) {
     state_gamma  = state_val_gamma %>%
       rename(state_optimal_gamma = gamma)
     
-    print(range(state_Tested$time_value))
-
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
       inner_join(opt_alpha, by = "geo_value") %>%
@@ -220,7 +217,9 @@ for (window_date in dump_dates) {
 
     state_interval_frame = rbind(state_interval_frame, state_intervals)
     back_2 = rbind(back_2, Tested)
-    
+
+    print(range(state_interval_frame$time_value))
+   
   }
   
   # New data has been seen, update scores here 
