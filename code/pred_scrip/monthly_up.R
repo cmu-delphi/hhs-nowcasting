@@ -242,7 +242,7 @@ for (window_date in dump_dates) {
     filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
-    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
+    summarise(update = sum((GT > upper) - miscover_lvl)) 
   
   # Update learning rates
   state_lr_frame = state_interval_frame %>%
