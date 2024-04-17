@@ -14,7 +14,7 @@ alphas = signif(seq(0, 1, length.out = 51))
 cadence = 30
 offset = 120
 vl = 2
-sf = "log"
+sf = "relative"
 
 
 
@@ -101,13 +101,21 @@ for (window_date in dump_dates) {
 
         # Initalize state level scores to be 1 - alpha quantile of the residual
         # of the selected model over the burn-in set
-        if (sf == "log") {
+        if (sf == "relative") {
           state_score_frame = state_val_frame %>%
+            filter(time_value == issue_date) %>%
             mutate(resid = abs(.resid)) %>%
-            summarise(scores = quantile(resid, probs = 1 - miscover_lvl)) %>%
-            # Mutate to log of quantiles
-            mutate(scores = pmax(scores, 0)) %>%
-            mutate(scores = log(scores))
+            mutate(d_t = pmax(.fitted, 0.1)) %>%
+            mutate(e_t = resid / d_t) %>%
+            summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
+            mutate(scores = pmax(scores, 0))
+
+          state_denom = state_val_frame %>%
+            filter(time_value == issue_date) %>%
+            select(geo_value, time_value, .fitted) %>%
+            mutate(d_t = pmax(.fitted, 0.1)) %>%
+            mutate(days_diff = as.numeric(time_value - train_end)) %>%
+            select(geo_value, time_value, days_diff, d_t)
         }
 
       }
@@ -219,11 +227,12 @@ for (window_date in dump_dates) {
     
     # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
     state_intervals = state_Tested %>%
-      inner_join(state_score_frame, by = "geo_value") %>%
+      mutate(days_diff = as.numeric(time_value - window_date)) %>%
+      inner_join(state_score_frame, by = c("geo_value", "days_diff")) %>%
       group_by(geo_value) %>%
       mutate(
-            #lower = pmax(state_fit - scores, 0),
-            upper = pmax(state_fit  + exp(scores)))
+            lower = pmax(state_fit - scores * d_t, 0),
+            upper = pmax(state_fit  + scores * d_t, 0))
     
     state_interval_frame = rbind(state_interval_frame, state_intervals)
     print(range(state_interval_frame$time_value))
@@ -249,9 +258,10 @@ for (window_date in dump_dates) {
     group_by(geo_value) %>%
     # set lr to be max of a rolling past, see coomment after prop1
     filter(time_value >= window_date - vl) %>%
-    filter(resid == max(resid)) %>%
     # Herustic of lr outlined in middle of page 6
-    mutate(lr = 0.1 * resid) %>%
+    # Use mean to reduce variance 
+    # scale lr so that lr * sum(mistake - miscover_lvl) is roughly 1
+    mutate(lr = 0.01 * mean(resid)) %>%
     select(geo_value, lr) 
   
 
