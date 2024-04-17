@@ -14,6 +14,7 @@ alphas = signif(seq(0, 1, length.out = 51))
 cadence = 30
 offset = 120
 vl = 2
+sf = "log"
 
 
 
@@ -93,15 +94,22 @@ for (window_date in dump_dates) {
           group_by(geo_value) %>%
           mutate(resid = abs(.resid)) %>%
           filter(resid == max(resid)) %>%
-          mutate(lr = 0.1 * resid) %>%
           # Herustic of lr outlined in middle of page 6
+          # What is a nice herustic for log scale?
+          mutate(lr = 0.01 * resid) %>%
           select(geo_value, lr)
 
         # Initalize state level scores to be 1 - alpha quantile of the residual
         # of the selected model over the burn-in set
-        state_score_frame = state_val_frame %>%
-          mutate(resid = abs(.resid)) %>%
-          summarise(scores = quantile(resid, probs = 1 - miscover_lvl))
+        if (sf == "log") {
+          state_score_frame = state_val_frame %>%
+            mutate(resid = abs(.resid)) %>%
+            summarise(scores = quantile(resid, probs = 1 - miscover_lvl)) %>%
+            # Mutate to log of quantiles
+            mutate(scores = pmax(scores, 0)) %>%
+            mutate(scores = log(scores))
+        }
+
       }
     } 
 
@@ -213,8 +221,9 @@ for (window_date in dump_dates) {
     state_intervals = state_Tested %>%
       inner_join(state_score_frame, by = "geo_value") %>%
       group_by(geo_value) %>%
-      mutate(lower = pmax(state_fit - scores, 0),
-            upper = pmax(state_fit  + scores, 0))
+      mutate(
+            #lower = pmax(state_fit - scores, 0),
+            upper = pmax(state_fit  + exp(scores)))
     
     state_interval_frame = rbind(state_interval_frame, state_intervals)
     print(range(state_interval_frame$time_value))
@@ -259,6 +268,6 @@ for (window_date in dump_dates) {
 
 write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
   row.names = FALSE)
-write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
+# write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
 
 
