@@ -18,13 +18,13 @@ source("assets_update/unconstrained_national_level_big_lag.R")
 
 
 ```{r}
-
-gammas = c(0, 0.001, 0.002)
-alphas = signif(seq(0, 1, length.out = 51))
+gammas = signif(seq(0, 0.0625, length.out = 25), 3)[1:3]
+alphas = signif(seq(0, 1, length.out = 51))[1:3]
 
 cadence = 30
 offset = 120
 vl = 2
+sf = "relative"
 
 
 
@@ -54,8 +54,7 @@ dump_dates = dump_dates - 1
 # Iterate through update dates 
 for (window_date in dump_dates) {
   
-  max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
-  print(max_date)
+  max_date = as.numeric(as.Date("2022-01-31") - window_date) - 1
   
   if (max_date == 0) {
     break
@@ -105,15 +104,23 @@ for (window_date in dump_dates) {
           group_by(geo_value) %>%
           mutate(resid = abs(.resid)) %>%
           filter(resid == max(resid)) %>%
-          mutate(lr = 0.1 * resid) %>%
           # Herustic of lr outlined in middle of page 6
+          # What is a nice herustic for log scale?
+          mutate(lr = 0.01 * resid) %>%
           select(geo_value, lr)
 
         # Initalize state level scores to be 1 - alpha quantile of the residual
         # of the selected model over the burn-in set
-        state_score_frame = state_val_frame %>%
-          mutate(resid = abs(.resid)) %>%
-          summarise(scores = quantile(resid, probs = 1 - miscover_lvl))
+        if (sf == "relative") {
+          state_score_frame = state_val_frame %>%
+            mutate(resid = abs(.resid)) %>%
+            mutate(d_t = pmax(abs(.fitted), 0.1)) %>%
+            mutate(e_t = resid / d_t) %>%
+            summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
+            mutate(scores = pmax(scores, 0))
+
+        }
+
       }
     } 
 
@@ -210,7 +217,6 @@ for (window_date in dump_dates) {
     state_gamma  = state_val_gamma %>%
       rename(state_optimal_gamma = gamma)
     
-    print(range(state_Tested$time_value))
 
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
@@ -224,10 +230,12 @@ for (window_date in dump_dates) {
     
     # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
     state_intervals = state_Tested %>%
-      inner_join(state_score_frame, by = "geo_value") %>%
+      mutate(d_t = pmax(state_fit, 0.1)) %>%
+      inner_join(state_score_frame, by = c("geo_value")) %>%
       group_by(geo_value) %>%
-      mutate(lower = pmax(state_fit - scores, 0),
-            upper = pmax(state_fit  + scores, 0))
+      mutate(
+            lower = pmax(state_fit - scores * d_t, 0),
+            upper = pmax(state_fit  + scores * d_t, 0))
     
     state_interval_frame = rbind(state_interval_frame, state_intervals)
     print(range(state_interval_frame$time_value))
@@ -236,12 +244,12 @@ for (window_date in dump_dates) {
     
   }
   
+
   # Between world, this month has ended, new data yet seen
   # update scores here 
   # Compute miscoverage during last month
   # Compute coverage only over nowcasts
   # Adapt the update step to be mimicking doing 30 update steps at once 
-
   miscover_freq = state_interval_frame %>%
     filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
@@ -253,9 +261,10 @@ for (window_date in dump_dates) {
     group_by(geo_value) %>%
     # set lr to be max of a rolling past, see coomment after prop1
     filter(time_value >= window_date - vl) %>%
-    filter(resid == max(resid)) %>%
     # Herustic of lr outlined in middle of page 6
-    mutate(lr = 0.1 * resid) %>%
+    # Use mean to reduce variance 
+    # scale lr so that lr * sum(mistake - miscover_lvl) is roughly 1
+    mutate(lr = 0.01 * mean(resid)) %>%
     select(geo_value, lr) 
   
 
@@ -265,7 +274,6 @@ for (window_date in dump_dates) {
     group_by(geo_value) %>%
     mutate(scores = scores + lr * update) %>%
     select(geo_value, scores)
-  break
 
 
 }

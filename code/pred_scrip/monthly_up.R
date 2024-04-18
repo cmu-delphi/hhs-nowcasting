@@ -44,14 +44,14 @@ dump_dates = dump_dates - 1
 # Iterate through update dates 
 for (window_date in dump_dates) {
   
-  max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
+  max_date = as.numeric(as.Date("2022-01-31") - window_date) - 1
   
   if (max_date == 0) {
     break
   }
 
 
-  for (i in seq(1, min(50, max_date))) {
+  for (i in seq(1, 2)) {
   
     # Every day we recieve updated features 
     train_end = window_date - vl * cadence 
@@ -103,9 +103,8 @@ for (window_date in dump_dates) {
         # of the selected model over the burn-in set
         if (sf == "relative") {
           state_score_frame = state_val_frame %>%
-            filter(time_value == issue_date) %>%
             mutate(resid = abs(.resid)) %>%
-            mutate(d_t = pmax(.fitted, 0.1)) %>%
+            mutate(d_t = pmax(abs(.fitted), 0.1)) %>%
             mutate(e_t = resid / d_t) %>%
             summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
             mutate(scores = pmax(scores, 0))
