@@ -14,6 +14,7 @@ alphas = signif(seq(0, 1, length.out = 51))
 cadence = 30
 offset = 120
 vl = 2
+sf = "relative"
 
 
 
@@ -28,11 +29,7 @@ national_model_coef = c()
 # Level of miscover c. 1 - c gives the desired coverage level. e.g., if you 
 # want 90% coverage, set miscover_lvl=0.1
 miscover_lvl = 0.4 
-# Initalize state level scores to be one for all geo_values
-state_score_frame = labels_hosp %>%
-  select(geo_value) %>%
-  distinct() %>%
-  mutate(scores = 1)
+
 # State level learning rates. To be initalized after first round of validation
 state_lr_frame = c()
 # Data frame for state level intervals
@@ -47,23 +44,15 @@ dump_dates = dump_dates - 1
 # Iterate through update dates 
 for (window_date in dump_dates) {
   
-  
   max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
-  print(max_date)
-  
   
   if (max_date == 0) {
-    
     break
-    
   }
 
-  
 
   for (i in seq(1, min(50, max_date))) {
-    
-    
-    
+  
     # Every day we recieve updated features 
     train_end = window_date - vl * cadence 
     # Prevent intersection with previous test
@@ -86,19 +75,6 @@ for (window_date in dump_dates) {
       
     }
     
-    # Intialize state_lr_frame to be 0.1 * max absolute residuals 
-    if (window_date == dump_dates[1]) {
-      state_lr_frame = state_val_frame %>%
-        select(geo_value, time_value, .resid) %>%
-        mutate(.resid = abs(.resid)) %>%
-        rename(resid = .resid) %>%
-        filter(resid == max(resid)) %>%
-        # Herustic of lr outlined in middle of page 6
-        mutate(lr = 0.1 * resid) %>%
-        select(-resid, -time_value)
-    }
-
-    
     # Select FV gamma and retrain
     # Two levels: state and national level
     # No more subsetting: `produce_fv` only produces 2 months of FV data
@@ -108,8 +84,44 @@ for (window_date in dump_dates) {
       mutate(Min = min(MAE)) %>%
       filter(MAE == Min) %>%
       select(geo_value, gamma)
-    
-    
+
+    # Set learning rates of quantile tracker 
+    # Intialize state_lr_frame to be 0.1 * max absolute residuals 
+    if (window_date == dump_dates[1]) {
+      if (i == 1){
+        state_lr_frame = state_val_frame %>%
+          select(geo_value, time_value, .resid) %>%
+          group_by(geo_value) %>%
+          mutate(resid = abs(.resid)) %>%
+          filter(resid == max(resid)) %>%
+          # Herustic of lr outlined in middle of page 6
+          # What is a nice herustic for log scale?
+          mutate(lr = 0.01 * resid) %>%
+          select(geo_value, lr)
+
+        # Initalize state level scores to be 1 - alpha quantile of the residual
+        # of the selected model over the burn-in set
+        if (sf == "relative") {
+          state_score_frame = state_val_frame %>%
+            filter(time_value == issue_date) %>%
+            mutate(resid = abs(.resid)) %>%
+            mutate(d_t = pmax(.fitted, 0.1)) %>%
+            mutate(e_t = resid / d_t) %>%
+            summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
+            mutate(scores = pmax(scores, 0))
+
+          state_denom = state_val_frame %>%
+            filter(time_value == issue_date) %>%
+            select(geo_value, time_value, .fitted) %>%
+            mutate(d_t = pmax(.fitted, 0.1)) %>%
+            mutate(days_diff = as.numeric(time_value - train_end)) %>%
+            select(geo_value, time_value, days_diff, d_t)
+        }
+
+      }
+    } 
+
+
     national_gamma = national_val_frame %>%
       group_by(gamma) %>%
       summarise(MAE = mean(abs(.resid))) %>%
@@ -150,10 +162,7 @@ for (window_date in dump_dates) {
 
     national_model_coef = rbind(national_model_coef, c(national_selected_models$coefficients, 
       as.Date(version, "1970-01-01")))
-    
-    
-    
-    
+  
     # Find mixing weights 
     mixed_val_frame = alpha_fv(alphas, state_val_frame, national_val_frame, 
       state_val_gamma, national_gamma)
@@ -205,6 +214,7 @@ for (window_date in dump_dates) {
     state_gamma  = state_val_gamma %>%
       rename(state_optimal_gamma = gamma)
     
+
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
       inner_join(opt_alpha, by = "geo_value") %>%
@@ -217,33 +227,57 @@ for (window_date in dump_dates) {
     
     # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
     state_intervals = state_Tested %>%
-      inner_join(state_score_frame, by = "geo_value") %>%
-      inner_join(state_lr_frame, by = "geo_value") %>%
+      mutate(days_diff = as.numeric(time_value - window_date)) %>%
+      inner_join(state_score_frame, by = c("geo_value")) %>%
       group_by(geo_value) %>%
-      mutate(lower = pmax(state_fit - lr * scores, 0),
-            upper = pmax(state_fit  + lr * scores, 0))
-
+      mutate(
+            lower = pmax(state_fit - scores * d_t, 0),
+            upper = pmax(state_fit  + scores * d_t, 0))
+    
     state_interval_frame = rbind(state_interval_frame, state_intervals)
+    print(range(state_interval_frame$time_value))
+    
     back_2 = rbind(back_2, Tested)
     
   }
   
-  # New data has been seen, update scores here 
+
+  # Between world, this month has ended, new data yet seen
+  # update scores here 
   # Compute miscoverage during last month
-  miscover_freq = state_intervals %>%
+  # Compute coverage only over nowcasts
+  # Adapt the update step to be mimicking doing 30 update steps at once 
+  miscover_freq = state_interval_frame %>%
+    filter(time_value >= as.Date(window_date)) %>%
+    filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
-    summarise(update = mean(GT < lower | GT > upper) - miscover_lvl) 
+    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
   
-  state_updated_scores = state_score_frame %>%
+  # Update learning rates
+  state_lr_frame = state_interval_frame %>%
+    group_by(geo_value) %>%
+    # set lr to be max of a rolling past, see coomment after prop1
+    filter(time_value >= window_date - vl) %>%
+    # Herustic of lr outlined in middle of page 6
+    # Use mean to reduce variance 
+    # scale lr so that lr * sum(mistake - miscover_lvl) is roughly 1
+    mutate(lr = 0.01 * mean(resid)) %>%
+    select(geo_value, lr) 
+  
+
+  state_score_frame = state_score_frame %>%
     inner_join(state_lr_frame, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%
     group_by(geo_value) %>%
-    mutate(scores = scores + lr * update)
+    mutate(scores = scores + lr * update) %>%
+    select(geo_value, scores)
+
+
 }
 
 
 write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
   row.names = FALSE)
-write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
+# write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
 
 

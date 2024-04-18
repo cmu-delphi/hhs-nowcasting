@@ -110,12 +110,6 @@ for (window_date in dump_dates) {
             summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
             mutate(scores = pmax(scores, 0))
 
-          state_denom = state_val_frame %>%
-            filter(time_value == issue_date) %>%
-            select(geo_value, time_value, .fitted) %>%
-            mutate(d_t = pmax(.fitted, 0.1)) %>%
-            mutate(days_diff = as.numeric(time_value - train_end)) %>%
-            select(geo_value, time_value, days_diff, d_t)
         }
 
       }
@@ -227,8 +221,8 @@ for (window_date in dump_dates) {
     
     # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
     state_intervals = state_Tested %>%
-      mutate(days_diff = as.numeric(time_value - window_date)) %>%
-      inner_join(state_score_frame, by = c("geo_value", "days_diff")) %>%
+      mutate(d_t = pmax(state_fit, 0.1)) %>%
+      inner_join(state_score_frame, by = c("geo_value")) %>%
       group_by(geo_value) %>%
       mutate(
             lower = pmax(state_fit - scores * d_t, 0),
@@ -251,7 +245,7 @@ for (window_date in dump_dates) {
     filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
-    summarise(update = sum((GT > upper) - miscover_lvl)) 
+    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
   
   # Update learning rates
   state_lr_frame = state_interval_frame %>%
