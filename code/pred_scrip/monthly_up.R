@@ -51,7 +51,7 @@ for (window_date in dump_dates) {
   }
 
 
-  for (i in seq(1, 2)) {
+  for (i in seq(1, min(50, max_date))) {
   
     # Every day we recieve updated features 
     train_end = window_date - vl * cadence 
