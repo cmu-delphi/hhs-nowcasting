@@ -254,7 +254,7 @@ for (window_date in dump_dates) {
     # Herustic of lr outlined in middle of page 6
     # Use mean to reduce variance 
     # scale lr so that lr * sum(mistake - miscover_lvl) is roughly 1
-    mutate(lr = 0.01 * mean(resid)) %>%
+    summarise(lr = 0.01 * mean(resid)) %>%
     select(geo_value, lr) 
   
 
