@@ -96,13 +96,22 @@ for (window_date in dump_dates) {
           filter(resid == max(resid)) %>%
           # Herustic of lr outlined in middle of page 6
           # What is a nice herustic for log scale?
-          mutate(lr = 0.01 * resid) %>%
+          mutate(lr = 0.1 * resid) %>%
           select(geo_value, lr)
 
         # Initalize state level scores to be 1 - alpha quantile of the residual
         # of the selected model over the burn-in set
+        # Further tighten the calculation to compute quantile of the residual 
+        # over the selected value of gamma? 
         if (sf == "relative") {
+
+          tmp_state_gamma = state_val_gamma %>%
+            rename(opt_g = gamma)
+
           state_score_frame = state_val_frame %>%
+            inner_join(tmp_state_gamma, by = "geo_value") %>%
+            filter(gamma == opt_g) %>%
+            select(-opt_g) %>%
             mutate(resid = abs(.resid)) %>%
             mutate(d_t = pmax(abs(.fitted), 0.1)) %>%
             mutate(e_t = resid / d_t) %>%
@@ -254,7 +263,7 @@ for (window_date in dump_dates) {
     # Herustic of lr outlined in middle of page 6
     # Use mean to reduce variance 
     # scale lr so that lr * sum(mistake - miscover_lvl) is roughly 1
-    summarise(lr = 0.01 * mean(resid)) %>%
+    summarise(lr = 0.1 * mean(resid)) %>%
     select(geo_value, lr) 
   
 

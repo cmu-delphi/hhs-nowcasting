@@ -62,7 +62,7 @@ for (window_date in dump_dates) {
   }
 
 
-  for (i in seq(1, 2)) {
+  for (i in seq(1, min(50, max_date))) {
   
     # Every day we recieve updated features 
     train_end = window_date - vl * cadence 
@@ -113,12 +113,22 @@ for (window_date in dump_dates) {
         # Initalize state level scores to be 1 - alpha quantile of the residual
         # of the selected model over the burn-in set
         if (sf == "relative") {
+          
+          tmp_state_gamma = state_val_gamma %>%
+            rename(opt_g = gamma)
+
+          
           state_score_frame = state_val_frame %>%
+            inner_join(tmp_state_gamma, by = "geo_value") %>%
+            filter(gamma == opt_g) %>%
+            select(-opt_g) %>%
             mutate(resid = abs(.resid)) %>%
             mutate(d_t = pmax(abs(.fitted), 0.1)) %>%
             mutate(e_t = resid / d_t) %>%
             summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
             mutate(scores = pmax(scores, 0))
+
+          break
 
         }
 
@@ -245,6 +255,7 @@ for (window_date in dump_dates) {
     
   }
   
+  break
 
   # Between world, this month has ended, new data yet seen
   # update scores here 
@@ -280,8 +291,8 @@ for (window_date in dump_dates) {
 }
 
 
-write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
-  row.names = FALSE)
+# write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
+#  row.names = FALSE)
 # write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
 # 
 # 

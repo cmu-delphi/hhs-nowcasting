@@ -15,7 +15,8 @@ library(vroom)
 
 
 ```{r}
-state_quant = vroom("../predictions/scenario1_state_quantileTracker.csv")
+state_quant = vroom("../predictions/scenario1_state_quantileTracker.csv") %>%
+  filter(time_value < as.Date("2021-12-01"))
 ```
 
 
@@ -23,7 +24,10 @@ state_quant = vroom("../predictions/scenario1_state_quantileTracker.csv")
 coverage = state_quant %>%
   filter(issue_date == time_value) %>%
   group_by(geo_value) %>%
-  summarise(freq = mean(lower <= GT & GT <= upper)) 
+  summarise(freq = mean(lower <= GT & GT <= upper),
+            n_obs = n()) 
+
+
 ```
 
 
@@ -33,6 +37,9 @@ cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
 cols = c("Nowcasts" = cbPalette[6])
 states = unique(coverage$geo_value)
+
+# pdf("figs/state_intervals.pdf", width=10, height=8)
+
 for (s in states) {
   data_state = state_quant %>%
     filter(geo_value == s) %>%
@@ -56,8 +63,81 @@ for (s in states) {
   print(p1)
   
 }
+
+# dev.off()
 ```
 
+# Plot coverage and scores simutaneously
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+colrs = c("scores" = cbPalette[6], "lr" = cbPalette[4], "coverage" = cbPalette[2])
+
+# 
+trans = function(x, from_range, to_range) {
+  (x - from_range[1]) / (from_range[2] - from_range[1]) *
+    (to_range[2] - to_range[1]) + to_range[1]
+}
+          
+states = unique(coverage$geo_value)
+
+pdf("figs/coverage_scores.pdf", width = 10, height = 8)
+
+for (s in states) {
+  
+  data_state = state_quant %>%
+    filter(geo_value == s) %>%
+    filter(time_value == issue_date)
+  
+  data_coverage = state_quant %>%
+    filter(geo_value == s) %>%
+    filter(time_value == issue_date) %>%
+    mutate(month = floor_date(time_value, "month")) %>%
+    group_by(month) %>%
+    summarise(coverage = mean(lower < GT & GT < upper)) %>%
+    rename(time_value = month) %>%
+    complete(time_value = seq.Date(as.Date("2021-04-01"), as.Date("2021-11-30"),
+            by = "day")) %>%
+    fill(coverage, .direction = "down")  
+  
+
+  scores_range = data_state %>%
+    select(scores) %>%
+    range
+  
+  coverage_range = c(0, 1)
+  
+  trans_coverage_score = function(x) trans(x, coverage_range, scores_range)
+  trans_score_coverage = function(x) trans(x, scores_range, coverage_range)
+  
+  p1 = ggplot(data_state) +
+    geom_line(aes(x = time_value, y = scores, color = "scores")) +
+    geom_line(data = data_coverage, aes(x = time_value, 
+      y = trans_coverage_score(coverage), color = "coverage")) +
+    scale_color_manual(name = "", values = colrs) +
+    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
+                 labels = scales::label_date_short()) +
+    scale_y_continuous(name = "Scores", 
+      breaks = signif(seq(min(data_state$scores), max(data_state$scores), length.out = 5), 3),
+      sec.axis = sec_axis(trans = trans_score_coverage,
+                          breaks = scales::pretty_breaks(n = 5),
+                          name = "Monthly averaged coverage of nowcasts")) +
+    ylab("Scores") +
+    xlab("Time value") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    ggtitle(toupper(s))
+    
+  print(p1)
+  
+}
+
+dev.off()
+```
+
+
+
+# Compute and plot month-wise coverage
 
 ```{r}
 cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
@@ -66,36 +146,25 @@ colrs = c("scores" = cbPalette[6], "lr" = cbPalette[4], "coverage" = cbPalette[2
           
 states = unique(coverage$geo_value)
 for (s in states) {
+  
   data_state = state_quant %>%
     filter(geo_value == s) %>%
-    filter(time_value == issue_date)
-  
-  # data_coverage = state_quant %>%
-  #   filter(geo_value == s) %>%
-  #   filter(time_value == issue_date) %>%
-  # # Group by year and month
-  #   group_by(time_value = make_date(year(time_value), month(time_value), 1)) %>% 
-  #   summarise(coverage = mean(GT >= lower & GT <= upper)) %>%
-  #   rowwise() %>%
-  #   mutate(day = list(seq.Date(floor_date(time_value, "month"), 
-  #                            ceiling_date(time_value, "month") - days(1), 
-  #                            by = "day"))) %>%
-  #   unnest(day) %>%
-  #   # Repeat the coverage values for each day
-  #   select(-time_value) %>%
-  #   rename(time_value = day) %>%
-  #   select(time_value, coverage)
-  
+    filter(time_value == issue_date) %>%
+    mutate(month = floor_date(time_value, "month")) %>%
+    group_by(month) %>%
+    summarise(coverage = mean(lower < GT & GT < upper)) %>%
+    rename(time_value = month) %>%
+    complete(time_value = seq.Date(as.Date("2021-04-01"), as.Date("2021-11-30"),
+            by = "day")) %>%
+    fill(coverage, .direction = "down")
   
   p1 = ggplot(data_state) +
-    geom_line(aes(x = time_value, y = scores, color = "scores")) +
-    # geom_step(data = data_coverage, aes(x = time_value, y = coverage, color = "coverage")) +
-    geom_line(aes(x = time_value, y = lr, color = "lr")) +
+    geom_step(aes(x = time_value, y = coverage, color = "coverage")) +
     scale_color_manual(name = "", values = colrs) +
     scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
                  labels = scales::label_date_short()) +
     scale_y_continuous(n.breaks = 5) +
-    ylab("Values") +
+    ylab("Coverage") +
     xlab("Time value") +
     theme_bw() +
     theme(legend.position = "bottom") +
@@ -106,43 +175,6 @@ for (s in states) {
 }
 ```
 
-```{r}
-expanded_data_coverage <- data_coverage %>%
-  # Create a sequence of dates for each month
-  rowwise() %>%
-  mutate(day = list(seq.Date(floor_date(time_value, "month"), 
-                             ceiling_date(time_value, "month") - days(1), 
-                             by = "day"))) %>%
-  unnest(day) %>%
-  # Repeat the coverage values for each day
-  select(-time_value) %>%
-  rename(time_value = day)
-```
 
 
 
-```{r}
-ca_state = state_quant %>%
-    filter(geo_value == "ca") %>%
-    filter(time_value == issue_date)
-
-ca_coverage = state_quant %>%
-  filter(geo_value == "ca") %>%
-# Group by year and month
-  group_by(time_value = make_date(year(time_value), month(time_value), 1)) %>% 
-  summarise(coverage = mean(GT >= lower & GT <= upper))
-```
-
-
-```{r}
-fl_state = state_quant %>%
-    filter(geo_value == "fl") %>%
-    filter(time_value == issue_date)
-
-fl_coverage = state_quant %>%
-  filter(geo_value == "fl") %>%
-  filter(time_value == issue_date) %>%
-# Group by year and month
-  group_by(time_value = make_date(year(time_value), month(time_value), 1)) %>% 
-  summarise(coverage = mean(GT >= lower & GT <= upper))
-```
