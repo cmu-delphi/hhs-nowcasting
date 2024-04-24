@@ -253,7 +253,8 @@ for (window_date in dump_dates) {
     filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
-    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
+    # Why must we do thirty updates at once?
+    summarise(update = mean((GT < lower | GT > upper) - miscover_lvl)) 
   
   # Update learning rates
   state_lr_frame = state_interval_frame %>%
@@ -271,7 +272,7 @@ for (window_date in dump_dates) {
     inner_join(state_lr_frame, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%
     group_by(geo_value) %>%
-    mutate(scores = scores + lr * update) %>%
+    mutate(scores = pmax(scores + lr * update, 0)) %>%
     select(geo_value, scores)
 
 

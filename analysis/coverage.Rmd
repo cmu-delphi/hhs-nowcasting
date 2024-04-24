@@ -81,7 +81,7 @@ trans = function(x, from_range, to_range) {
           
 states = unique(coverage$geo_value)
 
-pdf("figs/coverage_scores.pdf", width = 10, height = 8)
+# pdf("figs/coverage_scores.pdf", width = 10, height = 8)
 
 for (s in states) {
   
@@ -132,7 +132,7 @@ for (s in states) {
   
 }
 
-dev.off()
+# dev.off()
 ```
 
 
