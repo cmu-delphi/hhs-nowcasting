@@ -226,7 +226,7 @@ for (window_date in dump_dates) {
     
     # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
     state_intervals = state_Tested %>%
-      mutate(d_t = pmax(state_fit, 0.1)) %>%
+      mutate(d_t = pmax(state_fit, 1)) %>%
       inner_join(state_score_frame, by = c("geo_value")) %>%
       group_by(geo_value) %>%
       mutate(
