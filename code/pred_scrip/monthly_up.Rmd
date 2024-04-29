@@ -16,7 +16,6 @@ source("assets_update/unconstrained_state_level_big_lag.R")
 source("assets_update/unconstrained_national_level_big_lag.R")
 ```
 
-
 ```{r}
 
 gammas = signif(seq(0, 0.0625, length.out = 25), 3)
@@ -76,15 +75,10 @@ for (window_date in dump_dates) {
     
     # state level val frame 
     state_val_frame = state_produce_fv(gammas, train_end, version)
+    break
     
     # National level val frame 
     national_val_frame = national_produce_fv(gammas, train_end, version)
-    
-    if (nrow(state_val_frame) == 0) {
-      
-      break
-      
-    }
     
     # Select FV gamma and retrain
     # Two levels: state and national level
@@ -107,28 +101,30 @@ for (window_date in dump_dates) {
           filter(resid == max(resid)) %>%
           # Herustic of lr outlined in middle of page 6
           # What is a nice herustic for log scale?
-          mutate(lr = 0.01 * resid) %>%
+          mutate(lr = 0.1 * resid) %>%
           select(geo_value, lr)
 
         # Initalize state level scores to be 1 - alpha quantile of the residual
         # of the selected model over the burn-in set
+        # Further tighten the calculation to compute quantile of the residual 
+        # over the selected value of gamma? 
         if (sf == "relative") {
-          
+
           tmp_state_gamma = state_val_gamma %>%
             rename(opt_g = gamma)
 
-          
           state_score_frame = state_val_frame %>%
             inner_join(tmp_state_gamma, by = "geo_value") %>%
             filter(gamma == opt_g) %>%
             select(-opt_g) %>%
             mutate(resid = abs(.resid)) %>%
-            mutate(d_t = pmax(abs(.fitted), 0.1)) %>%
+            # Dampening: Cap the minimum of dampening to be 1
+            # This is roughly 60 quantile of the smallest hosp rate of a
+            # given state 
+            mutate(d_t = pmax(abs(.fitted), 1)) %>%
             mutate(e_t = resid / d_t) %>%
             summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
             mutate(scores = pmax(scores, 0))
-
-          break
 
         }
 
@@ -255,7 +251,6 @@ for (window_date in dump_dates) {
     
   }
   
-  break
 
   # Between world, this month has ended, new data yet seen
   # update scores here 
@@ -266,17 +261,18 @@ for (window_date in dump_dates) {
     filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
+    # Why must we do thirty updates at once?
     summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
   
   # Update learning rates
   state_lr_frame = state_interval_frame %>%
     group_by(geo_value) %>%
     # set lr to be max of a rolling past, see coomment after prop1
-    filter(time_value >= window_date - vl * cadence) %>%
+    filter(time_value >= window_date - vl) %>%
     # Herustic of lr outlined in middle of page 6
     # Use mean to reduce variance 
     # scale lr so that lr * sum(mistake - miscover_lvl) is roughly 1
-    summarise(lr = 0.01 * mean(resid)) %>%
+    summarise(lr = 0.1 * mean(resid)) %>%
     select(geo_value, lr) 
   
 
@@ -284,12 +280,11 @@ for (window_date in dump_dates) {
     inner_join(state_lr_frame, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%
     group_by(geo_value) %>%
-    mutate(scores = scores + lr * update) %>%
+    mutate(scores = pmax(scores + lr * update, 0)) %>%
     select(geo_value, scores)
 
 
 }
-
 
 # write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
 #  row.names = FALSE)

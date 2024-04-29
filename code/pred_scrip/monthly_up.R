@@ -69,12 +69,6 @@ for (window_date in dump_dates) {
     # National level val frame 
     national_val_frame = national_produce_fv(gammas, train_end, version)
     
-    if (nrow(state_val_frame) == 0) {
-      
-      break
-      
-    }
-    
     # Select FV gamma and retrain
     # Two levels: state and national level
     # No more subsetting: `produce_fv` only produces 2 months of FV data
@@ -105,15 +99,18 @@ for (window_date in dump_dates) {
         # over the selected value of gamma? 
         if (sf == "relative") {
 
-          tmp_state_gamma = state_val_gamma %>%
-            rename(opt_g = gamma)
+          # tmp_state_gamma = state_val_gamma %>%
+          #   rename(opt_g = gamma)
 
           state_score_frame = state_val_frame %>%
-            inner_join(tmp_state_gamma, by = "geo_value") %>%
-            filter(gamma == opt_g) %>%
-            select(-opt_g) %>%
+            # inner_join(tmp_state_gamma, by = "geo_value") %>%
+            # filter(gamma == opt_g) %>%
+            # select(-opt_g) %>%
             mutate(resid = abs(.resid)) %>%
-            mutate(d_t = pmax(abs(.fitted), 0.1)) %>%
+            # Dampening: Cap the minimum of dampening to be 1
+            # This is roughly 60 quantile of the smallest hosp rate of a
+            # given state 
+            mutate(d_t = pmax(abs(.fitted), 1)) %>%
             mutate(e_t = resid / d_t) %>%
             summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
             mutate(scores = pmax(scores, 0))
@@ -254,7 +251,7 @@ for (window_date in dump_dates) {
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
     # Why must we do thirty updates at once?
-    summarise(update = mean((GT < lower | GT > upper) - miscover_lvl)) 
+    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
   
   # Update learning rates
   state_lr_frame = state_interval_frame %>%
@@ -272,7 +269,7 @@ for (window_date in dump_dates) {
     inner_join(state_lr_frame, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%
     group_by(geo_value) %>%
-    mutate(scores = pmax(scores + lr * update, 0)) %>%
+    mutate(scores = pmax(pmin(scores + lr * update, 1), 0)) %>%
     select(geo_value, scores)
 
 
