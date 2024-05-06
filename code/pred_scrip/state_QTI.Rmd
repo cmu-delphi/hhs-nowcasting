@@ -1,0 +1,107 @@
+---
+title: "state_QTI"
+output: html_document
+date: "2024-05-06"
+---
+
+# Purpose
+
+Run quantile tracking on top of current nowcasts
+
+# Read data
+```{r}
+library(lubridate)
+library(tidyverse)
+library(vroom)
+
+state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
+
+
+
+```
+
+```{r}
+state_lr = readRDS("assets_QTI/state_lr_frame.RDS")
+state_score_frame = readRDS("assets_QTI/state_score_frame.RDS")
+
+miscover_lvl = 0.4
+state_QT = c()
+
+
+dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
+               as.Date("2021-07-01"), as.Date("2021-08-01"), as.Date("2021-09-01"),
+               as.Date("2021-10-01"), as.Date("2021-11-01"), as.Date("2021-12-01")) - 1
+
+
+
+for (window_date in dump_dates) {
+
+  max_date = as.numeric(as.Date("2022-01-31") - window_date) - 1
+
+  for (i in seq(1, min(50, max_date))) {
+      
+      window_date = as.Date(window_date, "1970-01-01")
+      version = window_date + i
+      version = as.Date(version, "1970-01-01")
+
+
+      tmp = state_pred %>%
+        # Stay between current dump and next dump
+        filter(issue_date == version) %>%
+        filter(time_value > window_date & 
+                 time_value < ceiling_date(window_date + 1, "month"))
+      if (nrow(tmp) == 0) {
+        next
+      }
+      
+      
+      interval_tmp = tmp %>%
+        select(geo_value, time_value, issue_date, state_fit, GT, 
+               resid) %>%
+        inner_join(state_score_frame, by = "geo_value") %>%
+        # Padding parameter, TODO: Change to additive padding (how?)
+        mutate(d_t = pmax(state_fit, 1)) %>%
+        mutate(
+          lower = pmax(state_fit - scores * d_t, 0),
+          upper = pmax(state_fit + scores * d_t, 0)
+        )
+
+      state_QT = rbind(state_QT, interval_tmp)
+
+  }
+  
+  # Between world, compute coverage and update scores 
+  miscover_freq = state_QT %>%
+    filter(time_value >= as.Date(window_date)) %>%
+    filter(time_value == issue_date) %>%
+    group_by(geo_value) %>%
+    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl))
+
+  state_lr = state_QT %>%
+    group_by(geo_value) %>%
+    filter(time_value >= as.Date(window_date)) %>%
+    filter(time_value == issue_date) %>%
+    mutate(scores = abs(state_fit - GT) / d_t) %>%
+    summarise(lr = 0.1 * mean(scores)) 
+    
+  state_score_frame = state_score_frame %>%
+    inner_join(state_lr, by = "geo_value") %>%
+    inner_join(miscover_freq, by = "geo_value") %>%
+    group_by(geo_value) %>%
+    summarise(scores = scores + lr * update)
+
+}
+
+write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row.names = FALSE)
+
+```
+
+
+why are there additional predictions???
+
+
+```{r}
+tmp = state_QT %>%
+  filter(issue_date == as.Date("2021-05-01") & time_value == as.Date("2021-04-01"))
+```
+
