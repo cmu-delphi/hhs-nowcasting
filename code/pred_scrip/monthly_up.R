@@ -254,14 +254,16 @@ for (window_date in dump_dates) {
     summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
   
   # Update learning rates
-  state_lr_frame = state_interval_frame %>%
+  state_lr_frame = back_2 %>%
     group_by(geo_value) %>%
     # set lr to be max of a rolling past, see coomment after prop1
     filter(time_value >= window_date - vl) %>%
-    # Herustic of lr outlined in middle of page 6
-    # Use mean to reduce variance 
-    # scale lr so that lr * sum(mistake - miscover_lvl) is roughly 1
-    summarise(lr = 0.1 * mean(resid)) %>%
+    # Note carefully learning rate is max of actual scores, not residuals!!!
+    # Learning rate has to come from the same score as the one used to construct interval
+    # Otherwise there will be scaling issues, i.e., the udpate would not be necessairly
+    # of the same scale 
+    mutate(scores = resid / max(state_fit, 1)) %>%
+    summarise(lr = 0.1 * mean(scores)) %>%
     select(geo_value, lr) 
   
 

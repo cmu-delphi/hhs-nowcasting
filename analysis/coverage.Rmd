@@ -218,6 +218,7 @@ residual_coverage = state_quant %>%
 
 corr_coverage_res = residual_coverage %>%
   ungroup() %>%
+  group_by(geo_value) %>%
   summarise(corr = cor(coverage, res_per))
 
 ```
