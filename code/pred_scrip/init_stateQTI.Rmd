@@ -20,7 +20,7 @@ gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 vl = 2; cadence = 30
 window_date = as.Date("2021-04-01")
 version = as.Date(window_date + 1)
-miscover_lvl = 0.4
+miscover_lvl = 0.4; lower_lvl = miscover_lvl/2; upper_lvl = 1-miscover_lvl/2
 
 # Every day we recieve updated features 
 train_end = window_date - vl * cadence 
@@ -42,10 +42,10 @@ state_val_gamma = state_val_frame %>%
 state_lr_frame = state_val_frame %>%
   select(geo_value, time_value, .resid, .fitted) %>%
   group_by(geo_value) %>%
-  mutate(resid = abs(.resid)) %>%
+  rename(resid = .resid) %>%
   filter(resid == max(resid)) %>%
   mutate(score = resid / max(.fitted, 1)) %>%
-  mutate(lr = 0.1 * mean(score)) %>%
+  mutate(lr = 0.1 * score) %>%
   select(geo_value, lr)
 
 
@@ -56,14 +56,14 @@ state_score_frame = state_val_frame %>%
   inner_join(tmp_state_gamma, by = "geo_value") %>%
   filter(gamma == opt_g) %>%
   select(-opt_g) %>%
-  mutate(resid = abs(.resid)) %>%
+  rename(resid = .resid) %>%
   # Dampening: Cap the minimum of dampening to be 1
   # This is roughly 60 quantile of the smallest hosp rate of a
   # given state 
   mutate(d_t = pmax(abs(.fitted), 1)) %>%
   mutate(e_t = resid / d_t) %>%
-  summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
-  mutate(scores = pmax(scores, 0))
+  summarise(lower_score = quantile(e_t, probs = lower_lvl),
+            upper_score = quantile(e_t, probs = upper_lvl))
 
 saveRDS(state_lr_frame, file = "assets_QTI/state_lr_frame.RDS")
 saveRDS(state_score_frame, file = "assets_QTI/state_score_frame.RDS")

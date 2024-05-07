@@ -15,16 +15,13 @@ library(tidyverse)
 library(vroom)
 
 state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
-
-
-
 ```
 
 ```{r}
 state_lr = readRDS("assets_QTI/state_lr_frame.RDS")
 state_score_frame = readRDS("assets_QTI/state_score_frame.RDS")
 
-miscover_lvl = 0.4
+miscover_lvl = 0.2; lower_q = miscover_lvl; upper_q = 1 - miscover_lvl
 state_QT = c()
 
 
@@ -61,9 +58,11 @@ for (window_date in dump_dates) {
         inner_join(state_score_frame, by = "geo_value") %>%
         # Padding parameter, TODO: Change to additive padding (how?)
         mutate(d_t = pmax(state_fit, 1)) %>%
+        # Construct asymmetric intervals
+        # Upper score is used to construct the LOWER end point
         mutate(
-          lower = pmax(state_fit - scores * d_t, 0),
-          upper = pmax(state_fit + scores * d_t, 0)
+          lower = pmax(state_fit + lower_score * state_fit, 0),
+          upper = pmax(state_fit + upper_score * state_fit, 0)
         )
 
       state_QT = rbind(state_QT, interval_tmp)
@@ -75,20 +74,28 @@ for (window_date in dump_dates) {
     filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
-    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl))
+    # Track lower and upper seperately 
+    summarise(update_lower = sum((GT < lower) - miscover_lvl),
+              update_upper = sum((GT > upper) - miscover_lvl))
 
   state_lr = state_QT %>%
     group_by(geo_value) %>%
     filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
-    mutate(scores = abs(state_fit - GT) / d_t) %>%
-    summarise(lr = 0.1 * mean(scores)) 
+    mutate(scores = (state_fit - GT) / d_t) %>%
+    summarise(lr = 0.1 * max(scores)) 
     
   state_score_frame = state_score_frame %>%
     inner_join(state_lr, by = "geo_value") %>%
     inner_join(miscover_freq, by = "geo_value") %>%
     group_by(geo_value) %>%
-    summarise(scores = scores + lr * update)
+    # Why is lower minus???
+    summarise(lower_tmp = lower_score - lr * update_lower,
+              upper_tmp = upper_score + lr * update_upper) %>%
+    mutate(lower_score = pmin(lower_tmp, upper_tmp),
+           upper_score = pmax(lower_tmp, upper_tmp)) %>%
+    select(-lower_tmp, -upper_tmp)
+  
 
 }
 
@@ -97,11 +104,44 @@ write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row
 ```
 
 
-why are there additional predictions???
-
-
 ```{r}
-tmp = state_QT %>%
-  filter(issue_date == as.Date("2021-05-01") & time_value == as.Date("2021-04-01"))
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
+cols = c("Nowcasts" = cbPalette[6])
+states = unique(state_QT$geo_value)
+
+# pdf("figs/state_intervals.pdf", width=10, height=8)
+
+for (s in states) {
+  data_state = state_QT %>%
+    filter(geo_value == s) %>%
+    filter(time_value == issue_date) %>%
+    filter(time_value <= as.Date("2021-12-01"))
+  
+  p1 = ggplot(data_state, aes(x = time_value, y = GT)) +
+    geom_bar(stat = "identity", aes(fill = "Actual Hospitalizations"), alpha = 0.7) +
+    geom_line(aes(x = time_value, y = state_fit, color = "Nowcasts")) +
+    geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Nowcasts"), alpha = 0.4) +
+    scale_color_manual(name = "", values = fills) +
+    scale_fill_manual(name = "", values = fills) +
+    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
+                 labels = scales::label_date_short()) +
+    xlab("Date") +
+    ylab("Hospitalization rate") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    ggtitle(paste0(toupper(s), ", nowcasts and interval"))
+    
+  print(p1)
+  
+}
+
+# dev.off()
+```
+```{r}
+ak = state_QT %>%
+  filter(geo_value == "ak") %>%
+  filter(time_value == issue_date)
 ```
 
