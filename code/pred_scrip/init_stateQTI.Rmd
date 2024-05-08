@@ -60,10 +60,13 @@ state_score_frame = state_val_frame %>%
   # Dampening: Cap the minimum of dampening to be 1
   # This is roughly 60 quantile of the smallest hosp rate of a
   # given state 
+  # Some subtlety, the conformal interval is defined as values that is
+  # less than a certain quantile of the score 
   mutate(d_t = pmax(abs(.fitted), 1)) %>%
-  mutate(e_t = resid / d_t) %>%
-  summarise(lower_score = quantile(e_t, probs = lower_lvl),
-            upper_score = quantile(e_t, probs = upper_lvl))
+  mutate(lower_e_t = -resid/d_t) %>%
+  mutate(upper_e_t = resid / d_t) %>%
+  summarise(lower_score = quantile(lower_e_t, probs = 1-miscover_lvl/2),
+            upper_score = quantile(upper_e_t, probs = 1-miscover_lvl/2))
 
 saveRDS(state_lr_frame, file = "assets_QTI/state_lr_frame.RDS")
 saveRDS(state_score_frame, file = "assets_QTI/state_score_frame.RDS")

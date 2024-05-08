@@ -39,12 +39,27 @@ state_quant = vroom("../predictions/scenario1_state_quantileTracker.csv") %>%
 
 
 ```{r}
+nowcasts_list = state_quant %>%
+  filter(time_value == issue_date) %>%
+  group_by(geo_value) %>%
+  group_split(.keep = FALSE)
+names(nowcasts_list) = unique(state_quant$geo_value)
+```
+
+
+
+```{r}
+il = nowcasts_list[["il"]]
+ma = nowcasts_list[["ma"]]
+```
+
+
+```{r}
 coverage = state_quant %>%
   filter(issue_date == time_value) %>%
   group_by(geo_value) %>%
   summarise(freq = mean(lower <= GT & GT <= upper),
             n_obs = n()) 
-
 
 ```
 
@@ -55,8 +70,6 @@ smallest = labels_hosp %>%
   summarise(min_hosp = min(GT))
 ```
 
-
-
 # Intervals
 
 ```{r}
@@ -66,7 +79,7 @@ fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
 cols = c("Nowcasts" = cbPalette[6])
 states = unique(coverage$geo_value)
 
-# pdf("figs/state_intervals.pdf", width=10, height=8)
+pdf("figs/state_intervals.pdf", width=10, height=8)
 
 for (s in states) {
   data_state = state_quant %>%
@@ -92,10 +105,11 @@ for (s in states) {
   
 }
 
-# dev.off()
+dev.off()
 ```
 
-# Plot coverage and scores simutaneously
+
+# Plot coverage of upper interval and upper score
 ```{r}
 cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
               "#0072B2", "#D55E00", "#CC79A7")
@@ -107,9 +121,9 @@ trans = function(x, from_range, to_range) {
     (to_range[2] - to_range[1]) + to_range[1]
 }
           
-states = unique(coverage$geo_value)
+states = unique(state_quant$geo_value)
 
-pdf("figs/coverage_scores.pdf", width = 10, height = 8)
+# pdf("figs/coverage_scores.pdf", width = 10, height = 8)
 
 for (s in states) {
   
@@ -121,32 +135,32 @@ for (s in states) {
     filter(geo_value == s) %>%
     filter(time_value == issue_date) %>%
     mutate(month = floor_date(time_value, "month")) %>%
-    group_by(month) %>%
-    summarise(coverage = mean(lower < GT & GT < upper)) %>%
+    group_by(geo_value, month) %>%
+    summarise(coverage = mean(GT < upper)) %>%
     rename(time_value = month) %>%
     complete(time_value = seq.Date(as.Date("2021-04-01"), as.Date("2021-11-30"),
             by = "day")) %>%
     fill(coverage, .direction = "down")  
   
 
-  scores_range = data_state %>%
-    select(scores) %>%
+  upper_scores_range = data_state %>%
+    select(upper_score) %>%
     range
   
   coverage_range = c(0, 1)
   
-  trans_coverage_score = function(x) trans(x, coverage_range, scores_range)
-  trans_score_coverage = function(x) trans(x, scores_range, coverage_range)
+  trans_coverage_score = function(x) trans(x, coverage_range, upper_scores_range)
+  trans_score_coverage = function(x) trans(x, upper_scores_range, coverage_range)
   
   p1 = ggplot(data_state) +
-    geom_line(aes(x = time_value, y = scores, color = "scores")) +
+    geom_line(aes(x = time_value, y = upper_score, color = "scores")) +
     geom_line(data = data_coverage, aes(x = time_value, 
       y = trans_coverage_score(coverage), color = "coverage")) +
     scale_color_manual(name = "", values = colrs) +
     scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
                  labels = scales::label_date_short()) +
     scale_y_continuous(name = "Scores", 
-      breaks = signif(seq(min(data_state$scores), max(data_state$scores), length.out = 5), 3),
+      breaks = signif(seq(min(data_state$upper_score), max(data_state$upper_score), length.out = 5), 3),
       sec.axis = sec_axis(trans = trans_score_coverage,
                           breaks = scales::pretty_breaks(n = 5),
                           name = "Monthly averaged coverage of nowcasts")) +
@@ -160,7 +174,7 @@ for (s in states) {
   
 }
 
-dev.off()
+# dev.off()
 ```
 
 
