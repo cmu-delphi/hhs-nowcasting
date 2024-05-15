@@ -61,8 +61,8 @@ for (window_date in dump_dates) {
         # Construct asymmetric intervals
         # Upper score is used to construct the LOWER end point
         mutate(
-          lower = pmax(state_fit - lower_score * state_fit, 0),
-          upper = pmax(state_fit + upper_score * state_fit, 0)
+          lower = pmax(state_fit - lower_score * d_t, 0),
+          upper = pmax(state_fit + upper_score * d_t, 0)
         )
 
       state_QT = rbind(state_QT, interval_tmp)
@@ -92,19 +92,17 @@ for (window_date in dump_dates) {
     inner_join(miscover_freq, by = "geo_value") %>%
     group_by(geo_value) %>%
     # Why is lower minus???
-    summarise(lower_tmp = lower_score + upper_lr * update_lower,
-              upper_tmp = upper_score + lower_lr * update_upper) %>%
-    mutate(lower_score = pmin(lower_tmp, upper_tmp),
-           upper_score = pmax(lower_tmp, upper_tmp)) %>%
-    select(-lower_tmp, -upper_tmp)
-  
+    summarise(lower_score = lower_score + upper_lr * update_lower,
+              upper_score = upper_score + lower_lr * update_upper) %>%
+    mutate(lower_score = pmax(0, lower_score),
+           upper_score = pmax(0, upper_score))
+
 
 }
 
 write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row.names = FALSE)
 
 ```
-
 
 
 
@@ -144,71 +142,9 @@ for (s in states) {
 # dev.off()
 ```
 
-
-# Plot coverage of upper interval and upper score
 ```{r}
-cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
-              "#0072B2", "#D55E00", "#CC79A7")
-colrs = c("scores" = cbPalette[6], "lr" = cbPalette[4], "coverage" = cbPalette[2])
-
-# 
-trans = function(x, from_range, to_range) {
-  (x - from_range[1]) / (from_range[2] - from_range[1]) *
-    (to_range[2] - to_range[1]) + to_range[1]
-}
-          
-states = unique(state_QT$geo_value)
-
-# pdf("figs/coverage_scores.pdf", width = 10, height = 8)
-
-for (s in states) {
-  
-  data_state = state_QT %>%
-    filter(geo_value == s) %>%
-    filter(time_value == issue_date)
-  
-  data_coverage = state_QT %>%
-    filter(geo_value == s) %>%
-    filter(time_value == issue_date) %>%
-    mutate(month = floor_date(time_value, "month")) %>%
-    group_by(geo_value, month) %>%
-    summarise(coverage = mean(GT < upper)) %>%
-    rename(time_value = month) %>%
-    complete(time_value = seq.Date(as.Date("2021-04-01"), as.Date("2021-11-30"),
-            by = "day")) %>%
-    fill(coverage, .direction = "down")  
-  
-
-  upper_scores_range = data_state %>%
-    select(upper_score) %>%
-    range
-  
-  coverage_range = c(0, 1)
-  
-  trans_coverage_score = function(x) trans(x, coverage_range, upper_scores_range)
-  trans_score_coverage = function(x) trans(x, upper_scores_range, coverage_range)
-  
-  p1 = ggplot(data_state) +
-    geom_line(aes(x = time_value, y = upper_score, color = "scores")) +
-    geom_line(data = data_coverage, aes(x = time_value, 
-      y = trans_coverage_score(coverage), color = "coverage")) +
-    scale_color_manual(name = "", values = colrs) +
-    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
-                 labels = scales::label_date_short()) +
-    scale_y_continuous(name = "Scores", 
-      breaks = signif(seq(min(data_state$upper_score), max(data_state$upper_score), length.out = 5), 3),
-      sec.axis = sec_axis(trans = trans_score_coverage,
-                          breaks = scales::pretty_breaks(n = 5),
-                          name = "Monthly averaged coverage of nowcasts")) +
-    ylab("Scores") +
-    xlab("Time value") +
-    theme_bw() +
-    theme(legend.position = "bottom") +
-    ggtitle(toupper(s))
-    
-  print(p1)
-  
-}
-
-# dev.off()
+ca = state_QT %>%
+  filter(geo_value == "ca") %>%
+  filter(time_value == issue_date)
 ```
+

@@ -79,48 +79,6 @@ for (window_date in dump_dates) {
       filter(MAE == Min) %>%
       select(geo_value, gamma)
 
-    # Set learning rates of quantile tracker 
-    # Intialize state_lr_frame to be 0.1 * max absolute residuals 
-    if (window_date == dump_dates[1]) {
-      if (i == 1){
-        state_lr_frame = state_val_frame %>%
-          select(geo_value, time_value, .resid) %>%
-          group_by(geo_value) %>%
-          mutate(resid = abs(.resid)) %>%
-          filter(resid == max(resid)) %>%
-          # Herustic of lr outlined in middle of page 6
-          # What is a nice herustic for log scale?
-          mutate(lr = 0.1 * resid) %>%
-          select(geo_value, lr)
-
-        # Initalize state level scores to be 1 - alpha quantile of the residual
-        # of the selected model over the burn-in set
-        # Further tighten the calculation to compute quantile of the residual 
-        # over the selected value of gamma? 
-        if (sf == "relative") {
-
-          # tmp_state_gamma = state_val_gamma %>%
-          #   rename(opt_g = gamma)
-
-          state_score_frame = state_val_frame %>%
-            # inner_join(tmp_state_gamma, by = "geo_value") %>%
-            # filter(gamma == opt_g) %>%
-            # select(-opt_g) %>%
-            mutate(resid = abs(.resid)) %>%
-            # Dampening: Cap the minimum of dampening to be 1
-            # This is roughly 60 quantile of the smallest hosp rate of a
-            # given state 
-            mutate(d_t = pmax(abs(.fitted), 1)) %>%
-            mutate(e_t = resid / d_t) %>%
-            summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
-            mutate(scores = pmax(scores, 0))
-
-        }
-
-      }
-    } 
-
-
     national_gamma = national_val_frame %>%
       group_by(gamma) %>%
       summarise(MAE = mean(abs(.resid))) %>%
@@ -201,9 +159,12 @@ for (window_date in dump_dates) {
     
 
     state_Tested = state_test %>%
-      do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
-      rename(state_fit = .fitted) %>%
-      select(geo_value, time_value, issue_date, state_fit, GT) %>%
+      mutate(preds = map2(model, data, 
+         ~as.data.frame(predict(.x, newdata = .y, 
+          interval = "prediction", level = 0.6)))) %>%
+      select(-model) %>%
+      unnest(cols = c(preds, data)) %>%
+      rename(state_fit = fit) %>%
       mutate(resid = abs(state_fit - GT))
     
     national_Tested = national_test %>%
@@ -240,40 +201,6 @@ for (window_date in dump_dates) {
     
   }
   
-
-  # Between world, this month has ended, new data yet seen
-  # update scores here 
-  # Compute miscoverage during last month
-  # Compute coverage only over nowcasts
-  # Adapt the update step to be mimicking doing 30 update steps at once 
-  miscover_freq = state_interval_frame %>%
-    filter(time_value >= as.Date(window_date)) %>%
-    filter(time_value == issue_date) %>%
-    group_by(geo_value) %>%
-    # Why must we do thirty updates at once?
-    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
-  
-  # Update learning rates
-  state_lr_frame = back_2 %>%
-    group_by(geo_value) %>%
-    # set lr to be max of a rolling past, see coomment after prop1
-    filter(time_value >= window_date - vl) %>%
-    # Note carefully learning rate is max of actual scores, not residuals!!!
-    # Learning rate has to come from the same score as the one used to construct interval
-    # Otherwise there will be scaling issues, i.e., the udpate would not be necessairly
-    # of the same scale 
-    mutate(scores = resid / max(state_fit, 1)) %>%
-    summarise(lr = 0.1 * mean(scores)) %>%
-    select(geo_value, lr) 
-  
-
-  state_score_frame = state_score_frame %>%
-    inner_join(state_lr_frame, by = "geo_value") %>%
-    inner_join(miscover_freq, by = "geo_value") %>%
-    group_by(geo_value) %>%
-    mutate(scores = pmax(pmin(scores + lr * update, 1), 0)) %>%
-    select(geo_value, scores)
-
 
 }
 
