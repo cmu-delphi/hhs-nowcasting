@@ -185,17 +185,6 @@ for (window_date in dump_dates) {
       mutate(mixed_pred = optimal * state_fit + (1 - optimal) * national_fit) %>%
       mutate(staleness = as.numeric(time_value - window_date))
     
-    # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
-    state_intervals = state_Tested %>%
-      mutate(d_t = pmax(state_fit, 1)) %>%
-      inner_join(state_score_frame, by = c("geo_value")) %>%
-      group_by(geo_value) %>%
-      mutate(
-            lower = pmax(state_fit - scores * d_t, 0),
-            upper = pmax(state_fit  + scores * d_t, 0))
-    
-    state_interval_frame = rbind(state_interval_frame, state_intervals)
-    print(range(state_interval_frame$time_value))
     
     back_2 = rbind(back_2, Tested)
     
@@ -204,9 +193,6 @@ for (window_date in dump_dates) {
 
 }
 
-
-write.csv(state_interval_frame, "../../predictions/scenario1_state_quantileTracker.csv",
-  row.names = FALSE)
-# write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
+write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
 
 
