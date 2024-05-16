@@ -165,6 +165,7 @@ for (window_date in dump_dates) {
                           pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.6))
                           names(pred_df)[names(pred_df) == "lwr"] <- "lwr_60"
                           names(pred_df)[names(pred_df) == "upr"] <- "upr_60"
+                          names(pred_df)[names(pred_df) == "fit"] <- "state_fit"
                           pred_df
                         }),
         preds_80 = map2(model, data, 
@@ -172,17 +173,17 @@ for (window_date in dump_dates) {
                           pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.8))
                           names(pred_df)[names(pred_df) == "lwr"] <- "lwr_80"
                           names(pred_df)[names(pred_df) == "upr"] <- "upr_80"
+                          names(pred_df)[names(pred_df) == "fit"] <- "fit_80"
                           pred_df
                         })
       ) %>%
       select(-model) %>%
       unnest(cols = c(preds_60, preds_80, data)) %>%
-      rename(state_fit_60 = fit, state_fit_80 = fit) %>%
+      select(-fit_80) %>%
       mutate(
-        resid_60 = abs(state_fit_60 - GT),
-        resid_80 = abs(state_fit_80 - GT)
+        resid = abs(state_fit - GT)
       )
-    
+      
     national_Tested = national_test %>%
       select(geo_value, time_value, issue_date, national_fit)
     

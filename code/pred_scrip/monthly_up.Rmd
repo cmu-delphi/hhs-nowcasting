@@ -17,7 +17,6 @@ source("assets_update/unconstrained_national_level_big_lag.R")
 ```
 
 ```{r}
-
 gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
 
@@ -75,7 +74,6 @@ for (window_date in dump_dates) {
     
     # state level val frame 
     state_val_frame = state_produce_fv(gammas, train_end, version)
-    break
     
     # National level val frame 
     national_val_frame = national_produce_fv(gammas, train_end, version)
@@ -89,48 +87,6 @@ for (window_date in dump_dates) {
       mutate(Min = min(MAE)) %>%
       filter(MAE == Min) %>%
       select(geo_value, gamma)
-
-    # Set learning rates of quantile tracker 
-    # Intialize state_lr_frame to be 0.1 * max absolute residuals 
-    if (window_date == dump_dates[1]) {
-      if (i == 1){
-        state_lr_frame = state_val_frame %>%
-          select(geo_value, time_value, .resid) %>%
-          group_by(geo_value) %>%
-          mutate(resid = abs(.resid)) %>%
-          filter(resid == max(resid)) %>%
-          # Herustic of lr outlined in middle of page 6
-          # What is a nice herustic for log scale?
-          mutate(lr = 0.1 * resid) %>%
-          select(geo_value, lr)
-
-        # Initalize state level scores to be 1 - alpha quantile of the residual
-        # of the selected model over the burn-in set
-        # Further tighten the calculation to compute quantile of the residual 
-        # over the selected value of gamma? 
-        if (sf == "relative") {
-
-          tmp_state_gamma = state_val_gamma %>%
-            rename(opt_g = gamma)
-
-          state_score_frame = state_val_frame %>%
-            inner_join(tmp_state_gamma, by = "geo_value") %>%
-            filter(gamma == opt_g) %>%
-            select(-opt_g) %>%
-            mutate(resid = abs(.resid)) %>%
-            # Dampening: Cap the minimum of dampening to be 1
-            # This is roughly 60 quantile of the smallest hosp rate of a
-            # given state 
-            mutate(d_t = pmax(abs(.fitted), 1)) %>%
-            mutate(e_t = resid / d_t) %>%
-            summarise(scores = quantile(e_t, probs = 1 - miscover_lvl)) %>%
-            mutate(scores = pmax(scores, 0))
-
-        }
-
-      }
-    } 
-
 
     national_gamma = national_val_frame %>%
       group_by(gamma) %>%
@@ -212,10 +168,30 @@ for (window_date in dump_dates) {
     
 
     state_Tested = state_test %>%
-      do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
-      rename(state_fit = .fitted) %>%
-      select(geo_value, time_value, issue_date, state_fit, GT) %>%
-      mutate(resid = abs(state_fit - GT))
+      mutate(
+        preds_60 = map2(model, data, 
+                        ~{
+                          pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.6))
+                          names(pred_df)[names(pred_df) == "lwr"] <- "lwr_60"
+                          names(pred_df)[names(pred_df) == "upr"] <- "upr_60"
+                          names(pred_df)[names(pred_df) == "fit"] <- "state_fit"
+                          pred_df
+                        }),
+        preds_80 = map2(model, data, 
+                        ~{
+                          pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.8))
+                          names(pred_df)[names(pred_df) == "lwr"] <- "lwr_80"
+                          names(pred_df)[names(pred_df) == "upr"] <- "upr_80"
+                          names(pred_df)[names(pred_df) == "fit"] <- "fit_80"
+                          pred_df
+                        })
+      ) %>%
+      select(-model) %>%
+      unnest(cols = c(preds_60, preds_80, data)) %>%
+      select(-fit_80) %>%
+      mutate(
+        resid = abs(state_fit - GT)
+      )
     
     national_Tested = national_test %>%
       select(geo_value, time_value, issue_date, national_fit)
@@ -235,54 +211,11 @@ for (window_date in dump_dates) {
       mutate(mixed_pred = optimal * state_fit + (1 - optimal) * national_fit) %>%
       mutate(staleness = as.numeric(time_value - window_date))
     
-    # Construct intervals: f(X_t) - qt <= y <= f(X_t) + q_t
-    state_intervals = state_Tested %>%
-      mutate(d_t = pmax(state_fit, 0.1)) %>%
-      inner_join(state_score_frame, by = c("geo_value")) %>%
-      group_by(geo_value) %>%
-      mutate(
-            lower = pmax(state_fit - scores * d_t, 0),
-            upper = pmax(state_fit  + scores * d_t, 0))
-    
-    state_interval_frame = rbind(state_interval_frame, state_intervals)
-    print(range(state_interval_frame$time_value))
     
     back_2 = rbind(back_2, Tested)
-    
+    break
   }
   
-
-  # Between world, this month has ended, new data yet seen
-  # update scores here 
-  # Compute miscoverage during last month
-  # Compute coverage only over nowcasts
-  # Adapt the update step to be mimicking doing 30 update steps at once 
-  miscover_freq = state_interval_frame %>%
-    filter(time_value >= as.Date(window_date)) %>%
-    filter(time_value == issue_date) %>%
-    group_by(geo_value) %>%
-    # Why must we do thirty updates at once?
-    summarise(update = sum((GT < lower | GT > upper) - miscover_lvl)) 
-  
-  # Update learning rates
-  state_lr_frame = state_interval_frame %>%
-    group_by(geo_value) %>%
-    # set lr to be max of a rolling past, see coomment after prop1
-    filter(time_value >= window_date - vl) %>%
-    # Herustic of lr outlined in middle of page 6
-    # Use mean to reduce variance 
-    # scale lr so that lr * sum(mistake - miscover_lvl) is roughly 1
-    summarise(lr = 0.1 * mean(resid)) %>%
-    select(geo_value, lr) 
-  
-
-  state_score_frame = state_score_frame %>%
-    inner_join(state_lr_frame, by = "geo_value") %>%
-    inner_join(miscover_freq, by = "geo_value") %>%
-    group_by(geo_value) %>%
-    mutate(scores = pmax(scores + lr * update, 0)) %>%
-    select(geo_value, scores)
-
 
 }
 
