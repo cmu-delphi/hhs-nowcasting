@@ -87,7 +87,7 @@ fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
 cols = c("Nowcasts" = cbPalette[6])
 states = unique(coverage$geo_value)
 
-# pdf("figs/state_intervals.pdf", width=10, height=8)
+pdf("figs/QT-state_intervals.pdf", width=10, height=8)
 
 for (s in states) {
   data_state = state_quant %>%
@@ -113,7 +113,7 @@ for (s in states) {
   
 }
 
-# dev.off()
+dev.off()
 ```
 
 

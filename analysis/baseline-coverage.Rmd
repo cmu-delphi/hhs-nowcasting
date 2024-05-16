@@ -1,0 +1,75 @@
+---
+title: "baseline_coverage"
+output: html_document
+date: "2024-05-16"
+---
+
+# Purpose
+
+We analyze the coverage properties where we used the quantile of relative errors directly. 
+
+
+```{r, message=FALSE}
+library(tidyverse)
+library(vroom)
+
+uspop = covidcast::state_census %>%
+  select(ABBR, POPESTIMATE2019) %>%
+  rename(geo_value = ABBR) %>%
+  rename(pop = POPESTIMATE2019) %>%
+  mutate(geo_value = tolower(geo_value)) %>%
+  slice(., 2:(n() - 4))
+
+
+labels_hosp = vroom("../versioned_feature/ground_truth.csv") %>%
+  filter(time_value >= as.Date("2020-11-01") & time_value <= as.Date("2022-07-31")) %>%
+  select(-issue_date) %>%
+  mutate(time_value = as.Date(time_value)) %>%
+  filter(geo_value != "vi") %>%
+  inner_join(uspop, by = "geo_value") %>%
+  mutate(GT = GT / pop * 10^5)
+
+
+```
+
+```{r}
+baseline_quant = vroom("../predictions/scenario1_rawQuantile.csv") %>%
+  filter(time_value <= as.Date("2021-12-01"))
+```
+
+
+# Intervals
+
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
+cols = c("Nowcasts" = cbPalette[6])
+states = unique(baseline_quant$geo_value)
+
+
+for (s in states) {
+  data_state = baseline_quant %>%
+    filter(geo_value == s) %>%
+    filter(time_value == issue_date) %>%
+    filter(time_value <= as.Date("2021-12-01"))
+  
+  p1 = ggplot(data_state, aes(x = time_value, y = GT)) +
+    geom_bar(stat = "identity", aes(fill = "Actual Hospitalizations"), alpha = 0.7) +
+    geom_line(aes(x = time_value, y = state_fit, color = "Nowcasts")) +
+    geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Nowcasts"), alpha = 0.4) +
+    scale_color_manual(name = "", values = fills) +
+    scale_fill_manual(name = "", values = fills) +
+    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
+                 labels = scales::label_date_short()) +
+    xlab("Date") +
+    ylab("Hospitalization rate") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    ggtitle(paste0(toupper(s), ", nowcasts and interval"))
+    
+  print(p1)
+  
+}
+
+```

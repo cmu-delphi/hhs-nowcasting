@@ -10,6 +10,10 @@ Run quantile tracking on top of current nowcasts
 
 # Read data
 ```{r}
+source("assets_update/data_load.R")
+source("assets_update/unconstrained_state_level_big_lag.R")
+source("assets_update/unconstrained_national_level_big_lag.R")
+
 library(lubridate)
 library(tidyverse)
 library(vroom)
@@ -17,12 +21,72 @@ library(vroom)
 state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
 ```
 
-```{r}
-state_lr = readRDS("assets_QTI/state_lr_frame.RDS")
-state_score_frame = readRDS("assets_QTI/state_score_frame.RDS")
 
-miscover_lvl = 0.2; lower_q = miscover_lvl; upper_q = 1 - miscover_lvl
-state_QT = c()
+```{r}
+miscover_lvl = 0.4; quant_lvl = 1 - miscover_lvl/2
+state_QT = c(); baseline_frame = c()
+
+window_date = as.Date("2021-04-01")
+version = as.Date(window_date + 1)
+vl = 2; cadence = 30
+gammas = signif(seq(0, 0.0625, length.out = 25), 3)
+
+
+
+# Every day we recieve updated features 
+train_end = window_date - vl * cadence 
+# Prevent intersection with previous test
+test_start = window_date + 1 
+test_start = as.Date(test_start, "1970-01-01")
+
+# state level val frame 
+state_val_frame = state_produce_fv(gammas, train_end, version)
+
+
+state_val_gamma = state_val_frame %>%
+  group_by(geo_value, gamma) %>%
+  summarise(MAE = mean(abs(.resid))) %>%
+  mutate(Min = min(MAE)) %>%
+  filter(MAE == Min) %>%
+  select(geo_value, gamma)
+
+state_lr_frame = state_val_frame %>%
+  select(geo_value, time_value, .resid, .fitted) %>%
+  group_by(geo_value) %>%
+  rename(resid = .resid) %>%
+  filter(resid == max(resid)) %>%
+  mutate(score = resid / max(.fitted, 1)) %>%
+  mutate(lr = 0.1 * score) %>%
+  select(geo_value, lr)
+
+tmp_state_gamma = state_val_gamma %>%
+    rename(opt_g = gamma)
+
+state_score_frame = state_val_frame %>%
+  inner_join(tmp_state_gamma, by = "geo_value") %>%
+  filter(gamma == opt_g) %>%
+  select(-opt_g) %>%
+  rename(resid = .resid) %>%
+  # Dampening: Cap the minimum of dampening to be 1
+  # This is roughly 60 quantile of the smallest hosp rate of a
+  # given state 
+  # Some subtlety, the conformal interval is defined as values that is
+  # less than a certain quantile of the score 
+  mutate(d_t = pmax(abs(.fitted), 1)) %>%
+  mutate(lower_e_t = -resid/d_t) %>%
+  mutate(upper_e_t = resid / d_t) %>%
+  summarise(lower_score = pmax(0, quantile(lower_e_t, probs = quant_lvl)),
+            upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl)))
+
+```
+
+
+```{r}
+state_quantile_frame = state_score_frame %>%
+  rename(lower_q = lower_score,
+         upper_q = upper_score)
+
+
 
 
 dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
@@ -52,6 +116,15 @@ for (window_date in dump_dates) {
       }
       
       
+      baseline_tmp = tmp %>%
+        select(geo_value, time_value, issue_date, state_fit, GT) %>%
+        mutate(d_t = pmax(state_fit, 1)) %>%
+        mutate(
+          lower = pmax(state_fit - lower_q * d_t, 0),
+          upper = pmax(state_fit + lower_q * d_t, 0)
+        )
+      
+      
       interval_tmp = tmp %>%
         select(geo_value, time_value, issue_date, state_fit, GT, 
                resid) %>%
@@ -66,6 +139,7 @@ for (window_date in dump_dates) {
         )
 
       state_QT = rbind(state_QT, interval_tmp)
+      baseline_frame = rbind(baseline_frame, baseline_tmp)
 
   }
   
@@ -84,8 +158,8 @@ for (window_date in dump_dates) {
     filter(time_value == issue_date) %>%
     mutate(upper_scores = (state_fit - GT) / d_t) %>%
     mutate(lower_scores = -(state_fit - GT) / d_t) %>%
-    summarise(upper_lr = 0.03 * max(upper_scores),
-              lower_lr = 0.03 * max(lower_score)) 
+    summarise(upper_lr = 0.015 * max(upper_scores),
+              lower_lr = 0.015 * max(lower_score)) 
     
   state_score_frame = state_score_frame %>%
     inner_join(state_lr, by = "geo_value") %>%
@@ -96,13 +170,25 @@ for (window_date in dump_dates) {
               upper_score = upper_score + lower_lr * update_upper) %>%
     mutate(lower_score = pmax(0, lower_score),
            upper_score = pmax(0, upper_score))
+  
+  state_quantile_frame = baseline_frame %>%
+    filter(time_value >= as.Date(window_date)) %>%
+    filter(time_value == issue_date) %>%
+    group_by(geo_value) %>%
+    mutate(d_t = max(state_fit, 1)) %>%
+    mutate(lower_score = (state_fit - GT) / d_t,
+           upper_score = (GT - state_fit) / d_t) %>%
+    summarise(lower_q = quantile(lower_score, quant_lvl),
+              upper_q = quantile(upper_score, quant_lvl))
 
 
 }
 
 write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row.names = FALSE)
-
+write.csv(baseline_frame, "../../predictions/scenario1_rawQuantile.csv", row.names = FALSE)
 ```
+
+
 
 
 
@@ -111,9 +197,8 @@ cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
               "#0072B2", "#D55E00", "#CC79A7")
 fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
 cols = c("Nowcasts" = cbPalette[6])
-states = unique(state_QT$geo_value)
+states = unique(baseline_frame$geo_value)
 
-# pdf("figs/state_intervals.pdf", width=10, height=8)
 
 for (s in states) {
   data_state = state_QT %>%
@@ -133,18 +218,102 @@ for (s in states) {
     ylab("Hospitalization rate") +
     theme_bw() +
     theme(legend.position = "bottom") +
-    ggtitle(paste0(toupper(s), ", nowcasts and interval"))
+    ggtitle(paste0(toupper(s), ", quantile track"))
     
   print(p1)
   
 }
 
-# dev.off()
 ```
 
 ```{r}
-ca = state_QT %>%
-  filter(geo_value == "ca") %>%
-  filter(time_value == issue_date)
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
+cols = c("Nowcasts" = cbPalette[6])
+states = unique(baseline_frame$geo_value)
+
+
+for (s in states) {
+  data_state = baseline_frame %>%
+    filter(geo_value == s) %>%
+    filter(time_value == issue_date) %>%
+    filter(time_value <= as.Date("2021-12-01"))
+  
+  p1 = ggplot(data_state, aes(x = time_value, y = GT)) +
+    geom_bar(stat = "identity", aes(fill = "Actual Hospitalizations"), alpha = 0.7) +
+    geom_line(aes(x = time_value, y = state_fit, color = "Nowcasts")) +
+    geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Nowcasts"), alpha = 0.4) +
+    scale_color_manual(name = "", values = fills) +
+    scale_fill_manual(name = "", values = fills) +
+    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
+                 labels = scales::label_date_short()) +
+    xlab("Date") +
+    ylab("Hospitalization rate") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    ggtitle(paste0(toupper(s), ", RAW quantile"))
+    
+  print(p1)
+  
+}
+
+```
+
+
+
+```{r}
+interval_score = function(L, U, y, alpha) {
+  # Calculate the width of the interval
+  width_penalty = U - L
+  
+  # Calculate the penalty for missing below the lower bound
+  lower_miss_penalty = ifelse(y < L, (L - y) * (2 / alpha), 0)
+  
+  # Calculate the penalty for missing above the upper bound
+  upper_miss_penalty = ifelse(y > U, (y - U) * (2 / alpha), 0)
+  
+  # Return the total interval score
+  return(width_penalty + lower_miss_penalty + upper_miss_penalty)
+}
+```
+
+
+```{r}
+qt_is = state_QT %>%
+  group_by(geo_value) %>%
+  mutate(IS = interval_score(lower, upper, GT, miscover_lvl)) %>%
+  group_by(geo_value) %>%
+  summarise(IS = mean(IS))
+
+rawQ_is = baseline_frame %>%
+  group_by(geo_value) %>%
+  mutate(IS = interval_score(lower, upper, GT, miscover_lvl)) %>%
+  group_by(geo_value) %>%
+  summarise(IS = mean(IS))
+
+
+
+print(mean(qt_is$IS))
+print(mean(rawQ_is$IS))
+
+print(sd(qt_is$IS))
+print(sd(rawQ_is$IS))
+
+```
+
+```{r}
+qt_coverage = state_QT %>%
+  group_by(geo_value) %>%
+  summarise(cover = mean(lower < GT & GT < upper))
+
+rawQ_coverage = baseline_frame %>%
+  group_by(geo_value) %>%
+  summarise(cover = mean(lower < GT & GT < upper))
+
+print(mean(qt_coverage$cover))
+print(mean(rawQ_coverage$cover))
+
+
 ```
 
