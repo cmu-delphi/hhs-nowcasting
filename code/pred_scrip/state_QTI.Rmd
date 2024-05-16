@@ -9,7 +9,7 @@ date: "2024-05-06"
 Run quantile tracking on top of current nowcasts
 
 # Read data
-```{r}
+```{r, message=FALSE}
 source("assets_update/data_load.R")
 source("assets_update/unconstrained_state_level_big_lag.R")
 source("assets_update/unconstrained_national_level_big_lag.R")
@@ -22,7 +22,7 @@ state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
 ```
 
 
-```{r}
+```{r, message=FALSE}
 miscover_lvl = 0.4; quant_lvl = 1 - miscover_lvl/2
 state_QT = c(); baseline_frame = c()
 
@@ -78,10 +78,7 @@ state_score_frame = state_val_frame %>%
   summarise(lower_score = pmax(0, quantile(lower_e_t, probs = quant_lvl)),
             upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl)))
 
-```
 
-
-```{r}
 state_quantile_frame = state_score_frame %>%
   rename(lower_q = lower_score,
          upper_q = upper_score)
@@ -118,10 +115,11 @@ for (window_date in dump_dates) {
       
       baseline_tmp = tmp %>%
         select(geo_value, time_value, issue_date, state_fit, GT) %>%
+        inner_join(state_quantile_frame, by = "geo_value") %>%
         mutate(d_t = pmax(state_fit, 1)) %>%
         mutate(
           lower = pmax(state_fit - lower_q * d_t, 0),
-          upper = pmax(state_fit + lower_q * d_t, 0)
+          upper = pmax(state_fit + upper_q * d_t, 0)
         )
       
       
@@ -149,8 +147,8 @@ for (window_date in dump_dates) {
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
     # Track lower and upper seperately 
-    summarise(update_lower = sum((GT < lower) - miscover_lvl),
-              update_upper = sum((GT > upper) - miscover_lvl))
+    summarise(update_lower = sum((GT < lower) - miscover_lvl/2),
+              update_upper = sum((GT > upper) - miscover_lvl/2))
 
   state_lr = state_QT %>%
     group_by(geo_value) %>%
@@ -158,8 +156,8 @@ for (window_date in dump_dates) {
     filter(time_value == issue_date) %>%
     mutate(upper_scores = (state_fit - GT) / d_t) %>%
     mutate(lower_scores = -(state_fit - GT) / d_t) %>%
-    summarise(upper_lr = 0.015 * max(upper_scores),
-              lower_lr = 0.015 * max(lower_score)) 
+    summarise(upper_lr = 0.03 * max(upper_scores),
+              lower_lr = 0.03 * max(lower_score)) 
     
   state_score_frame = state_score_frame %>%
     inner_join(state_lr, by = "geo_value") %>%
@@ -178,14 +176,14 @@ for (window_date in dump_dates) {
     mutate(d_t = max(state_fit, 1)) %>%
     mutate(lower_score = (state_fit - GT) / d_t,
            upper_score = (GT - state_fit) / d_t) %>%
-    summarise(lower_q = quantile(lower_score, quant_lvl),
-              upper_q = quantile(upper_score, quant_lvl))
+    summarise(lower_q = pmax(0, quantile(lower_score, quant_lvl)),
+              upper_q = pmax(0, quantile(upper_score, quant_lvl)))
 
 
 }
 
-write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row.names = FALSE)
-write.csv(baseline_frame, "../../predictions/scenario1_rawQuantile.csv", row.names = FALSE)
+# write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row.names = FALSE)
+# write.csv(baseline_frame, "../../predictions/scenario1_rawQuantile.csv", row.names = FALSE)
 ```
 
 
@@ -315,5 +313,17 @@ print(mean(qt_coverage$cover))
 print(mean(rawQ_coverage$cover))
 
 
+```
+
+
+
+```{r}
+ak_qt = state_QT %>%
+  filter(geo_value == "ak") %>%
+  filter(time_value == issue_date)
+
+ak_st = baseline_frame %>%
+  filter(geo_value == "ak") %>%
+  filter(time_value == issue_date)
 ```
 
