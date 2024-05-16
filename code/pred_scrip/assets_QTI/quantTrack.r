@@ -1,35 +1,35 @@
-source("../assets_update/data_load.R")
-source("../assets_update/unconstrained_state_level_big_lag.R")
-source("../assets_update/unconstrained_national_level_big_lag.R")
+source("assets_update/data_load.R")
+source("assets_update/unconstrained_state_level_big_lag.R")
+source("assets_update/unconstrained_national_level_big_lag.R")
 
 library(lubridate)
 library(tidyverse)
 library(vroom)
 
-state_pred = vroom("../../../predictions/bl_versioned_hhs_mixed.csv")
+state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
 
 
 "
 Implement quantile tracking and baselines, over a range of alpha (nominal miscoverage) lvl
 "
-quantileTrack_Baseline = function(mis_lvl_vector) {
+quantileTrack_Baseline = function(alpha_vector) {
 
 
   quant_frame = c()
   base_frame = c()
 
-  for (nominal_lvl in mis_lvl_vector) {
+  for (alpha in alpha_vector) {
 
-    miscover_lvl = nominal_lvl; quant_lvl = 1 - miscover_lvl/2
+    state_QT = c(); baseline_frame = c()
+
+    miscover_lvl = alpha; quant_lvl = 1 - miscover_lvl/2
 
     window_date = as.Date("2021-04-01")
     version = as.Date(window_date + 1)
     vl = 2; cadence = 30
     gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 
-
-
-    # Every day we recieve updated features 
+    # Intialize scores to be 1 - alpha/2 quantiles 
     train_end = window_date - vl * cadence 
     # Prevent intersection with previous test
     test_start = window_date + 1 
@@ -37,8 +37,6 @@ quantileTrack_Baseline = function(mis_lvl_vector) {
 
     # state level val frame 
     state_val_frame = state_produce_fv(gammas, train_end, version)
-
-
     state_val_gamma = state_val_frame %>%
       group_by(geo_value, gamma) %>%
       summarise(MAE = mean(abs(.resid))) %>%
@@ -74,19 +72,14 @@ quantileTrack_Baseline = function(mis_lvl_vector) {
       summarise(lower_score = pmax(0, quantile(lower_e_t, probs = quant_lvl)),
                 upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl)))
 
-
     state_quantile_frame = state_score_frame %>%
       rename(lower_q = lower_score,
             upper_q = upper_score)
 
-
-
-
+    
     dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
                   as.Date("2021-07-01"), as.Date("2021-08-01"), as.Date("2021-09-01"),
                   as.Date("2021-10-01"), as.Date("2021-11-01"), as.Date("2021-12-01")) - 1
-
-
 
     for (window_date in dump_dates) {
 
@@ -110,14 +103,14 @@ quantileTrack_Baseline = function(mis_lvl_vector) {
           
           
           baseline_tmp = tmp %>%
-            select(geo_value, time_value, issue_date, state_fit, GT) %>%
+            select(geo_value, time_value, issue_date, state_fit, GT, state_optimal_gamma) %>%
             inner_join(state_quantile_frame, by = "geo_value") %>%
             mutate(d_t = pmax(state_fit, 1)) %>%
             mutate(
               lower = pmax(state_fit - lower_q * d_t, 0),
               upper = pmax(state_fit + upper_q * d_t, 0)
             ) %>%
-            mutate(alpha = nominal_lvl)
+            mutate(alpha = miscover_lvl)
           
           
           interval_tmp = tmp %>%
@@ -132,10 +125,10 @@ quantileTrack_Baseline = function(mis_lvl_vector) {
               lower = pmax(state_fit - lower_score * d_t, 0),
               upper = pmax(state_fit + upper_score * d_t, 0)
             ) %>%
-            mutate(alpha = nominal_lvl)
+            mutate(alpha = miscover_lvl)
 
-          quant_frame = rbind(quant_frame, interval_tmp)
-          base_frame = rbind(base_frame, baseline_tmp)
+          state_QT = rbind(state_QT, interval_tmp) 
+          baseline_frame = rbind(baseline_frame, baseline_tmp) 
 
       }
       
@@ -161,22 +154,30 @@ quantileTrack_Baseline = function(mis_lvl_vector) {
         inner_join(state_lr, by = "geo_value") %>%
         inner_join(miscover_freq, by = "geo_value") %>%
         group_by(geo_value) %>%
+        # Why is lower minus???
         summarise(lower_score = lower_score + upper_lr * update_lower,
                   upper_score = upper_score + lower_lr * update_upper) %>%
         mutate(lower_score = pmax(0, lower_score),
               upper_score = pmax(0, upper_score))
       
+      # Do something a bit more sophisticated for empirical quantiles
+      # We respect the weigthing of our models, and find quantiles via weighting
+      # Again, only look at nowcasts
       state_quantile_frame = baseline_frame %>%
-        filter(time_value >= as.Date(window_date)) %>%
         filter(time_value == issue_date) %>%
         group_by(geo_value) %>%
+        mutate(weights = exp(-state_optimal_gamma * as.numeric(max(time_value) - time_value))) %>%
         mutate(d_t = max(state_fit, 1)) %>%
         mutate(lower_score = (state_fit - GT) / d_t,
               upper_score = (GT - state_fit) / d_t) %>%
-        summarise(lower_q = pmax(0, quantile(lower_score, quant_lvl)),
-                  upper_q = pmax(0, quantile(upper_score, quant_lvl)))
+        summarise(lower_q = pmax(0, wtd.quantile(lower_score, 
+                    weights = weights, probs = quant_lvl)),
+                  upper_q = pmax(0, quantile(upper_score, 
+                    weights = weights, probs = quant_lvl)))
+
+
     }
-
-  return(as.list(quant_frame, base_frame))
-
+    quant_frame = rbind(quant_frame, state_QT); base_frame = rbind(base_frame, baseline_frame)
+  }
+  return(list(as.tibble(quant_frame), as.tibble(base_frame)))
 }

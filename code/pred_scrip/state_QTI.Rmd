@@ -14,12 +14,26 @@ source("assets_update/data_load.R")
 source("assets_update/unconstrained_state_level_big_lag.R")
 source("assets_update/unconstrained_national_level_big_lag.R")
 
+library(Hmisc)
 library(lubridate)
 library(tidyverse)
 library(vroom)
 
 state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
 ```
+
+
+```{r}
+source("assets_QTI/quantTrack.r")
+
+
+frames = quantileTrack_Baseline(c(0.2, 0.4))
+
+
+saveRDS(frames, file = "../../predictions/quanTrack_Baseline.rds")
+
+```
+
 
 
 ```{r, message=FALSE}
@@ -83,7 +97,7 @@ state_quantile_frame = state_score_frame %>%
   rename(lower_q = lower_score,
          upper_q = upper_score)
 
-
+remove(in_raw, out_raw)
 
 
 dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
@@ -114,7 +128,7 @@ for (window_date in dump_dates) {
       
       
       baseline_tmp = tmp %>%
-        select(geo_value, time_value, issue_date, state_fit, GT) %>%
+        select(geo_value, time_value, issue_date, state_fit, GT, state_optimal_gamma) %>%
         inner_join(state_quantile_frame, by = "geo_value") %>%
         mutate(d_t = pmax(state_fit, 1)) %>%
         mutate(
@@ -169,21 +183,26 @@ for (window_date in dump_dates) {
     mutate(lower_score = pmax(0, lower_score),
            upper_score = pmax(0, upper_score))
   
+  # Do something a bit more sophisticated for empirical quantiles
+  # We respect the weigthing of our models, and find quantiles via weighting
+  # Again, only look at nowcasts
   state_quantile_frame = baseline_frame %>%
-    filter(time_value >= as.Date(window_date)) %>%
     filter(time_value == issue_date) %>%
     group_by(geo_value) %>%
+    mutate(weights = exp(-state_optimal_gamma * as.numeric(max(time_value) - time_value))) %>%
     mutate(d_t = max(state_fit, 1)) %>%
     mutate(lower_score = (state_fit - GT) / d_t,
            upper_score = (GT - state_fit) / d_t) %>%
-    summarise(lower_q = pmax(0, quantile(lower_score, quant_lvl)),
-              upper_q = pmax(0, quantile(upper_score, quant_lvl)))
+    summarise(lower_q = pmax(0, wtd.quantile(lower_score, 
+                weights = weights, probs = quant_lvl)),
+              upper_q = pmax(0, quantile(upper_score, 
+                weights = weights, probs = quant_lvl)))
 
 
 }
 
-# write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row.names = FALSE)
-# write.csv(baseline_frame, "../../predictions/scenario1_rawQuantile.csv", row.names = FALSE)
+write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row.names = FALSE)
+write.csv(baseline_frame, "../../predictions/scenario1_rawQuantile.csv", row.names = FALSE)
 ```
 
 
@@ -260,21 +279,6 @@ for (s in states) {
 
 
 
-```{r}
-interval_score = function(L, U, y, alpha) {
-  # Calculate the width of the interval
-  width_penalty = U - L
-  
-  # Calculate the penalty for missing below the lower bound
-  lower_miss_penalty = ifelse(y < L, (L - y) * (2 / alpha), 0)
-  
-  # Calculate the penalty for missing above the upper bound
-  upper_miss_penalty = ifelse(y > U, (y - U) * (2 / alpha), 0)
-  
-  # Return the total interval score
-  return(width_penalty + lower_miss_penalty + upper_miss_penalty)
-}
-```
 
 
 ```{r}
@@ -316,14 +320,4 @@ print(mean(rawQ_coverage$cover))
 ```
 
 
-
-```{r}
-ak_qt = state_QT %>%
-  filter(geo_value == "ak") %>%
-  filter(time_value == issue_date)
-
-ak_st = baseline_frame %>%
-  filter(geo_value == "ak") %>%
-  filter(time_value == issue_date)
-```
 

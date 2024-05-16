@@ -33,31 +33,60 @@ labels_hosp = vroom("../versioned_feature/ground_truth.csv") %>%
 ```
 
 ```{r}
-baseline_quant = vroom("../predictions/scenario1_rawQuantile.csv") %>%
-  filter(time_value <= as.Date("2021-12-01"))
+list_intervals = readRDS("../predictions/quanTrack_Baseline.rds")
+
+state_QT = list_intervals[[1]]; baseline_frame = list_intervals[[2]]
+
+state_QT = state_QT %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value))
+baseline_frame = baseline_frame %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value))
+
+state_QT_0.2 = state_QT %>%
+  filter(alpha == 0.2)
+state_QT_0.4 = state_QT %>%
+  filter(alpha == 0.4)
+
+base_0.2 = baseline_frame %>%
+  filter(alpha == 0.2)
+base_0.4 = baseline_frame %>%
+  filter(alpha == 0.4)
+
 ```
 
 
-# Intervals
+
+# Visualizations
 
 ```{r}
 cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
               "#0072B2", "#D55E00", "#CC79A7")
-fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
+fills = c("Actual Hospitalizations" = cbPalette[1], "Baseline" = cbPalette[6],
+          "QT" = cbPalette[2])
 cols = c("Nowcasts" = cbPalette[6])
-states = unique(baseline_quant$geo_value)
+states = unique(base_0.2$geo_value)
 
 
 for (s in states) {
-  data_state = baseline_quant %>%
+  
+  base_state = base_0.2 %>%
     filter(geo_value == s) %>%
     filter(time_value == issue_date) %>%
     filter(time_value <= as.Date("2021-12-01"))
   
-  p1 = ggplot(data_state, aes(x = time_value, y = GT)) +
+  quant_state = state_QT_0.2 %>%
+    filter(geo_value == s) %>%
+    filter(time_value == issue_date) %>%
+    filter(time_value <= as.Date("2021-12-01"))
+  
+
+  p1 = ggplot(base_state, aes(x = time_value, y = GT)) +
     geom_bar(stat = "identity", aes(fill = "Actual Hospitalizations"), alpha = 0.7) +
-    geom_line(aes(x = time_value, y = state_fit, color = "Nowcasts")) +
-    geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Nowcasts"), alpha = 0.4) +
+    geom_line(aes(x = time_value, y = state_fit, color = "Baseline")) +
+    geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Baseline"), alpha = 0.4) +
+    geom_line(data = quant_state, aes(x = time_value, y = state_fit, color = "QT")) +
+    geom_ribbon(data = quant_state, aes(x = time_value, ymin = lower, 
+      ymax = upper, fill = "QT"), alpha = 0.4) +
     scale_color_manual(name = "", values = fills) +
     scale_fill_manual(name = "", values = fills) +
     scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
@@ -66,10 +95,148 @@ for (s in states) {
     ylab("Hospitalization rate") +
     theme_bw() +
     theme(legend.position = "bottom") +
-    ggtitle(paste0(toupper(s), ", nowcasts and interval"))
+    ggtitle(paste0(toupper(s), ", alpha = 0.2"))
     
   print(p1)
   
 }
 
 ```
+
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+fills = c("Actual Hospitalizations" = cbPalette[1], "Baseline" = cbPalette[6],
+          "QT" = cbPalette[2])
+cols = c("Nowcasts" = cbPalette[6])
+states = unique(base_0.2$geo_value)
+
+
+for (s in states) {
+  
+  base_state = base_0.4 %>%
+    filter(geo_value == s) %>%
+    filter(time_value == issue_date) %>%
+    filter(time_value <= as.Date("2021-12-01"))
+  
+  quant_state = state_QT_0.4 %>%
+    filter(geo_value == s) %>%
+    filter(time_value == issue_date) %>%
+    filter(time_value <= as.Date("2021-12-01"))
+  
+
+  p1 = ggplot(base_state, aes(x = time_value, y = GT)) +
+    geom_bar(stat = "identity", aes(fill = "Actual Hospitalizations"), alpha = 0.7) +
+    geom_line(aes(x = time_value, y = state_fit, color = "Baseline")) +
+    geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Baseline"), alpha = 0.4) +
+    geom_line(data = quant_state, aes(x = time_value, y = state_fit, color = "QT")) +
+    geom_ribbon(data = quant_state, aes(x = time_value, ymin = lower, 
+      ymax = upper, fill = "QT"), alpha = 0.4) +
+    scale_color_manual(name = "", values = fills) +
+    scale_fill_manual(name = "", values = fills) +
+    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
+                 labels = scales::label_date_short()) +
+    xlab("Date") +
+    ylab("Hospitalization rate") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    ggtitle(paste0(toupper(s), ", alpha = 0.4"))
+    
+  print(p1)
+  
+}
+
+```
+
+
+
+
+
+
+# Score calculaiton
+```{r}
+interval_score = function(L, U, y, alpha) {
+  # Calculate the width of the interval
+  width_penalty = U - L
+  
+  # Calculate the penalty for missing below the lower bound
+  lower_miss_penalty = ifelse(y < L, (L - y) * (2 / alpha), 0)
+  
+  # Calculate the penalty for missing above the upper bound
+  upper_miss_penalty = ifelse(y > U, (y - U) * (2 / alpha), 0)
+  
+  # Return the total interval score
+  return(width_penalty + lower_miss_penalty + upper_miss_penalty)
+}
+```
+
+
+# WIS
+```{r, message=FALSE}
+qt_2_is = state_QT_0.2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(qt_IS = mean(interval_score(lower, upper, GT, 0.2)))
+
+qt_4_is = state_QT_0.4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(qt_IS = mean(interval_score(lower, upper, GT, 0.4)))
+
+base_2_is = base_0.2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(base_IS = mean(interval_score(lower, upper, GT, 0.2)))
+
+base_4_is = base_0.4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(base_IS = mean(interval_score(lower, upper, GT, 0.4)))
+
+
+score_2 = qt_2_is %>%
+  inner_join(base_2_is, by = c("geo_value", "backcast_lag")) %>%
+  mutate(diff = base_IS - qt_IS)
+
+score_4 = qt_4_is %>%
+  inner_join(base_4_is, by = c("geo_value", "backcast_lag")) %>%
+  mutate(diff = base_IS - qt_IS)
+
+print(quantile(score_2$diff, probs = c(0.2, 0.4, 0.6, 0.8, 1)))
+print(quantile(score_4$diff, probs = c(0.2, 0.4, 0.6, 0.8, 1)))
+```
+
+# Compute coverage
+```{r, message=FALSE}
+qt_2_cover = state_QT_0.2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(coverage = mean(lower < GT & GT < upper))
+qt_4_cover = state_QT_0.4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(coverage = mean(lower < GT & GT < upper))
+
+base_2_cover = base_0.2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(coverage = mean(lower < GT & GT < upper))
+
+base_4_cover = base_0.4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(coverage = mean(lower < GT & GT < upper))
+
+```
+
+
+```{r}
+print(quantile(qt_2_cover$coverage), probs = c(0.2, 0.4, 0.6, 0.8, 1))
+print(quantile(base_2_cover$coverage), probs = c(0.2, 0.4, 0.6, 0.8, 1))
+```
+
+```{r}
+print(quantile(qt_4_cover$coverage), probs = c(0.2, 0.4, 0.6, 0.8, 1))
+print(quantile(base_4_cover$coverage), probs = c(0.2, 0.4, 0.6, 0.8, 1))
+```
+
