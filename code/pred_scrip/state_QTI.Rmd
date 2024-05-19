@@ -8,316 +8,253 @@ date: "2024-05-06"
 
 Run quantile tracking on top of current nowcasts
 
-# Read data
+
 ```{r, message=FALSE}
-source("assets_update/data_load.R")
-source("assets_update/unconstrained_state_level_big_lag.R")
-source("assets_update/unconstrained_national_level_big_lag.R")
-
-library(Hmisc)
-library(lubridate)
-library(tidyverse)
-library(vroom)
-
-state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
+source("assets_QTI/quantTrack.r")
 ```
 
 
-```{r}
-source("assets_QTI/quantTrack.r")
-
-
+```{r, message=FALSE}
 frames = quantileTrack_Baseline(c(0.2, 0.4))
 
 
 saveRDS(frames, file = "../../predictions/quanTrack_Baseline.rds")
-
 ```
 
 
+```{r}
+source("assets_update/data_load.R")
+source("assets_update/unconstrained_state_level_big_lag.R")
+source("assets_update/unconstrained_national_level_big_lag.R")
+library(Hmisc)
 
-```{r, message=FALSE}
-miscover_lvl = 0.4; quant_lvl = 1 - miscover_lvl/2
-state_QT = c(); baseline_frame = c()
-
-window_date = as.Date("2021-04-01")
-version = as.Date(window_date + 1)
-vl = 2; cadence = 30
-gammas = signif(seq(0, 0.0625, length.out = 25), 3)
+state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
 
 
+quant_frame = c(); weighted_frame = c(); unweighted_frame = c()
 
-# Every day we recieve updated features 
-train_end = window_date - vl * cadence 
-# Prevent intersection with previous test
-test_start = window_date + 1 
-test_start = as.Date(test_start, "1970-01-01")
+for (alpha in c(0.2, 0.4)) {
 
-# state level val frame 
-state_val_frame = state_produce_fv(gammas, train_end, version)
+  state_QT = c(); unwei_Quant = c(); wei_Quant = c()
+
+  miscover_lvl = alpha; quant_lvl = 1 - miscover_lvl/2
+
+  window_date = as.Date("2021-04-01")
+  version = as.Date(window_date + 1)
+  vl = 2; cadence = 30
+  gammas = signif(seq(0, 0.0625, length.out = 25), 3)
+
+  # Intialize scores to be 1 - alpha/2 quantiles 
+  train_end = window_date - vl * cadence 
+  # Prevent intersection with previous test
+  test_start = window_date + 1 
+  test_start = as.Date(test_start, "1970-01-01")
+
+  # state level val frame 
+  state_val_frame = state_produce_fv(gammas, train_end, version)
+  state_val_gamma = state_val_frame %>%
+    group_by(geo_value, gamma) %>%
+    summarise(MAE = mean(abs(.resid))) %>%
+    mutate(Min = min(MAE)) %>%
+    filter(MAE == Min) %>%
+    select(geo_value, gamma)
+
+  state_lr_frame = state_val_frame %>%
+    select(geo_value, time_value, .resid, .fitted) %>%
+    group_by(geo_value) %>%
+    rename(resid = .resid) %>%
+    filter(resid == max(resid)) %>%
+    mutate(score = resid / max(.fitted, 1)) %>%
+    mutate(lr = 0.1 * score) %>%
+    select(geo_value, lr)
+
+  tmp_state_gamma = state_val_gamma %>%
+      rename(opt_g = gamma)
+
+  state_score_frame = state_val_frame %>%
+    inner_join(tmp_state_gamma, by = "geo_value") %>%
+    filter(gamma == opt_g) %>%
+    select(-opt_g) %>%
+    rename(resid = .resid) %>%
+    # Dampening: Cap the minimum of dampening to be 1
+    mutate(d_t = pmax(abs(.fitted), 1)) %>%
+    mutate(lower_e_t = -resid/d_t) %>%
+    mutate(upper_e_t = resid / d_t) %>%
+    summarise(lower_score = pmax(0, quantile(lower_e_t, probs = quant_lvl)),
+              upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl)))
+
+  # Produce both weighted and unweighted quantiles 
+  unwei_quantiles = state_score_frame %>%
+    rename(lower_q = lower_score,
+          upper_q = upper_score)
+
+  # Do we want to do initalization more carefully? 
+  weighted_quantiles = state_val_frame %>%
+    inner_join(tmp_state_gamma, by = "geo_value") %>%
+    filter(gamma == opt_g) %>%
+    mutate(backcast_lag = as.numeric(max(time_value) - time_value)) %>%
+    rename(resid = .resid) %>%
+    mutate(weights = exp(-gamma * backcast_lag)) %>%
+    mutate(d_t = pmax(abs(.fitted), 1)) %>%
+    mutate(lower_e_t = -resid/d_t) %>%
+    mutate(upper_e_t = resid / d_t) %>%
+    summarise(
+      lower_q = pmax(0, wtd.quantile(lower_e_t, 
+        weights = weights, probs = quant_lvl, normwt = TRUE)),
+      upper_q = pmax(0, quantile(upper_e_t, 
+        weights = weights, probs = quant_lvl, normwt = TRUE)))
 
 
-state_val_gamma = state_val_frame %>%
-  group_by(geo_value, gamma) %>%
-  summarise(MAE = mean(abs(.resid))) %>%
-  mutate(Min = min(MAE)) %>%
-  filter(MAE == Min) %>%
-  select(geo_value, gamma)
+  dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
+                as.Date("2021-07-01"), as.Date("2021-08-01"), as.Date("2021-09-01"),
+                as.Date("2021-10-01"), as.Date("2021-11-01"), as.Date("2021-12-01")) - 1
 
-state_lr_frame = state_val_frame %>%
-  select(geo_value, time_value, .resid, .fitted) %>%
-  group_by(geo_value) %>%
-  rename(resid = .resid) %>%
-  filter(resid == max(resid)) %>%
-  mutate(score = resid / max(.fitted, 1)) %>%
-  mutate(lr = 0.1 * score) %>%
-  select(geo_value, lr)
+  for (window_date in dump_dates) {
 
-tmp_state_gamma = state_val_gamma %>%
-    rename(opt_g = gamma)
+    max_date = as.numeric(as.Date("2022-01-31") - window_date) - 1
 
-state_score_frame = state_val_frame %>%
-  inner_join(tmp_state_gamma, by = "geo_value") %>%
-  filter(gamma == opt_g) %>%
-  select(-opt_g) %>%
-  rename(resid = .resid) %>%
-  # Dampening: Cap the minimum of dampening to be 1
-  # This is roughly 60 quantile of the smallest hosp rate of a
-  # given state 
-  # Some subtlety, the conformal interval is defined as values that is
-  # less than a certain quantile of the score 
-  mutate(d_t = pmax(abs(.fitted), 1)) %>%
-  mutate(lower_e_t = -resid/d_t) %>%
-  mutate(upper_e_t = resid / d_t) %>%
-  summarise(lower_score = pmax(0, quantile(lower_e_t, probs = quant_lvl)),
-            upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl)))
+    for (i in seq(1, min(50, max_date))) {
+        
+        window_date = as.Date(window_date, "1970-01-01")
+        version = window_date + i
+        version = as.Date(version, "1970-01-01")
 
 
-state_quantile_frame = state_score_frame %>%
-  rename(lower_q = lower_score,
-         upper_q = upper_score)
+        tmp = state_pred %>%
+          # Stay between current dump and next dump
+          filter(issue_date == version) %>%
+          filter(time_value > window_date & 
+                  time_value < ceiling_date(window_date + 1, "month"))
+        if (nrow(tmp) == 0) {
+          next
+        }
+        
 
-remove(in_raw, out_raw)
+        # Intervals via quantile tracking
+        track_tmp = tmp %>%
+          select(geo_value, time_value, issue_date, state_fit, GT, 
+                resid) %>%
+          inner_join(state_score_frame, by = "geo_value") %>%
+          # Padding parameter, TODO: Change to additive padding (how?)
+          mutate(d_t = pmax(state_fit, 1)) %>%
+          # Construct asymmetric intervals
+          # Upper score is used to construct the LOWER end point
+          mutate(
+            lower = pmax(state_fit - lower_score * d_t, 0),
+            upper = pmax(state_fit + upper_score * d_t, 0)
+          ) %>%
+          mutate(alpha = miscover_lvl)
+
+        # Intervals with unweighted sample quantiles 
+        unwei_tmp = tmp %>%
+          select(geo_value, time_value, issue_date, state_fit, GT) %>%
+          inner_join(unwei_quantiles, by = "geo_value") %>%
+          mutate(d_t = pmax(state_fit, 1)) %>%
+          mutate(
+            lower = pmax(state_fit - lower_q * d_t, 0),
+            upper = pmax(state_fit + upper_q * d_t, 0)
+          ) %>%
+          mutate(alpha = miscover_lvl)
+
+        # Intervals with weighted sample quantiles 
+        weighted_tmp = tmp %>%
+          select(geo_value, time_value, issue_date, state_fit, GT, state_optimal_gamma) %>%
+          inner_join(weighted_quantiles, by = "geo_value") %>%
+          mutate(d_t = pmax(state_fit, 1)) %>%
+          mutate(
+            lower = pmax(state_fit - lower_q * d_t, 0),
+            upper = pmax(state_fit + upper_q * d_t, 0)
+          ) %>%
+          mutate(alpha = miscover_lvl)
 
 
-dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
-               as.Date("2021-07-01"), as.Date("2021-08-01"), as.Date("2021-09-01"),
-               as.Date("2021-10-01"), as.Date("2021-11-01"), as.Date("2021-12-01")) - 1
+        state_QT = rbind(state_QT, track_tmp) 
+        unwei_Quant = rbind(unwei_Quant, unwei_tmp)
+        wei_Quant = rbind(wei_Quant, weighted_tmp) 
+    }
+    
+    # Between world, compute coverage and update scores 
+    miscover_freq = state_QT %>%
+      filter(time_value >= as.Date(window_date)) %>%
+      filter(time_value == issue_date) %>%
+      group_by(geo_value) %>%
+      # Track lower and upper seperately 
+      summarise(update_lower = sum((GT < lower) - miscover_lvl/2),
+                update_upper = sum((GT > upper) - miscover_lvl/2))
 
-
-
-for (window_date in dump_dates) {
-
-  max_date = as.numeric(as.Date("2022-01-31") - window_date) - 1
-
-  for (i in seq(1, min(50, max_date))) {
+    state_lr = state_QT %>%
+      group_by(geo_value) %>%
+      filter(time_value >= as.Date(window_date)) %>%
+      filter(time_value == issue_date) %>%
+      mutate(upper_scores = (state_fit - GT) / d_t) %>%
+      mutate(lower_scores = -(state_fit - GT) / d_t) %>%
+      summarise(upper_lr = 0.03 * max(upper_scores),
+                lower_lr = 0.03 * max(lower_score)) 
       
-      window_date = as.Date(window_date, "1970-01-01")
-      version = window_date + i
-      version = as.Date(version, "1970-01-01")
+    state_score_frame = state_score_frame %>%
+      inner_join(state_lr, by = "geo_value") %>%
+      inner_join(miscover_freq, by = "geo_value") %>%
+      group_by(geo_value) %>%
+      summarise(lower_score = lower_score + upper_lr * update_lower,
+                upper_score = upper_score + lower_lr * update_upper) %>%
+      mutate(lower_score = pmax(0, lower_score),
+            upper_score = pmax(0, upper_score))
+    
+    # Consider both weighted and unweighted empirical quantiles 
+    state_val_frame = state_produce_fv(gammas, train_end, version)
+    state_val_gamma = state_val_frame %>%
+        group_by(geo_value, gamma) %>%
+        summarise(MAE = mean(abs(.resid))) %>%
+        mutate(Min = min(MAE)) %>%
+        filter(MAE == Min) %>%
+        select(geo_value, gamma)
+    
+    
+    weighted_quantiles = wei_Quant %>%
+      filter(time_value == issue_date) %>%
+      group_by(geo_value) %>%
+      mutate(backcast_lag = as.numeric(max(time_value) - time_value)) %>%
+      mutate(weights = exp(-state_optimal_gamma * backcast_lag)) %>%
+      mutate(d_t = max(state_fit, 1)) %>%
+      mutate(lower_score = (state_fit - GT) / d_t,
+            upper_score = (GT - state_fit) / d_t) %>%
+      summarise(lower_q = pmax(0, wtd.quantile(lower_score, 
+                  weights = weights, probs = quant_lvl, normwt = TRUE)),
+                upper_q = pmax(0, wtd.quantile(upper_score, 
+                  weights = weights, probs = quant_lvl, normwt = TRUE)))
+    
+    break
+    
+    unwei_quantiles = unwei_Quant %>%
+      filter(time_value == issue_date) %>%
+      group_by(geo_value) %>%
+      mutate(d_t = max(state_fit, 1)) %>%
+      mutate(lower_score = (state_fit - GT) / d_t,
+            upper_score = (GT - state_fit) / d_t) %>%
+      summarise(lower_q = pmax(0, quantile(lower_score, probs = quant_lvl)),
+                upper_q = pmax(0, quantile(upper_score, probs = quant_lvl)))
+    
 
-
-      tmp = state_pred %>%
-        # Stay between current dump and next dump
-        filter(issue_date == version) %>%
-        filter(time_value > window_date & 
-                 time_value < ceiling_date(window_date + 1, "month"))
-      if (nrow(tmp) == 0) {
-        next
-      }
-      
-      
-      baseline_tmp = tmp %>%
-        select(geo_value, time_value, issue_date, state_fit, GT, state_optimal_gamma) %>%
-        inner_join(state_quantile_frame, by = "geo_value") %>%
-        mutate(d_t = pmax(state_fit, 1)) %>%
-        mutate(
-          lower = pmax(state_fit - lower_q * d_t, 0),
-          upper = pmax(state_fit + upper_q * d_t, 0)
-        )
-      
-      
-      interval_tmp = tmp %>%
-        select(geo_value, time_value, issue_date, state_fit, GT, 
-               resid) %>%
-        inner_join(state_score_frame, by = "geo_value") %>%
-        # Padding parameter, TODO: Change to additive padding (how?)
-        mutate(d_t = pmax(state_fit, 1)) %>%
-        # Construct asymmetric intervals
-        # Upper score is used to construct the LOWER end point
-        mutate(
-          lower = pmax(state_fit - lower_score * d_t, 0),
-          upper = pmax(state_fit + upper_score * d_t, 0)
-        )
-
-      state_QT = rbind(state_QT, interval_tmp)
-      baseline_frame = rbind(baseline_frame, baseline_tmp)
 
   }
-  
-  # Between world, compute coverage and update scores 
-  miscover_freq = state_QT %>%
-    filter(time_value >= as.Date(window_date)) %>%
-    filter(time_value == issue_date) %>%
-    group_by(geo_value) %>%
-    # Track lower and upper seperately 
-    summarise(update_lower = sum((GT < lower) - miscover_lvl/2),
-              update_upper = sum((GT > upper) - miscover_lvl/2))
-
-  state_lr = state_QT %>%
-    group_by(geo_value) %>%
-    filter(time_value >= as.Date(window_date)) %>%
-    filter(time_value == issue_date) %>%
-    mutate(upper_scores = (state_fit - GT) / d_t) %>%
-    mutate(lower_scores = -(state_fit - GT) / d_t) %>%
-    summarise(upper_lr = 0.03 * max(upper_scores),
-              lower_lr = 0.03 * max(lower_score)) 
-    
-  state_score_frame = state_score_frame %>%
-    inner_join(state_lr, by = "geo_value") %>%
-    inner_join(miscover_freq, by = "geo_value") %>%
-    group_by(geo_value) %>%
-    # Why is lower minus???
-    summarise(lower_score = lower_score + upper_lr * update_lower,
-              upper_score = upper_score + lower_lr * update_upper) %>%
-    mutate(lower_score = pmax(0, lower_score),
-           upper_score = pmax(0, upper_score))
-  
-  # Do something a bit more sophisticated for empirical quantiles
-  # We respect the weigthing of our models, and find quantiles via weighting
-  # Again, only look at nowcasts
-  state_quantile_frame = baseline_frame %>%
-    filter(time_value == issue_date) %>%
-    group_by(geo_value) %>%
-    mutate(weights = exp(-state_optimal_gamma * as.numeric(max(time_value) - time_value))) %>%
-    mutate(d_t = max(state_fit, 1)) %>%
-    mutate(lower_score = (state_fit - GT) / d_t,
-           upper_score = (GT - state_fit) / d_t) %>%
-    summarise(lower_q = pmax(0, wtd.quantile(lower_score, 
-                weights = weights, probs = quant_lvl)),
-              upper_q = pmax(0, quantile(upper_score, 
-                weights = weights, probs = quant_lvl)))
-
-
-}
-
-write.csv(state_QT, "../../predictions/scenario1_state_quantileTracker.csv", row.names = FALSE)
-write.csv(baseline_frame, "../../predictions/scenario1_rawQuantile.csv", row.names = FALSE)
-```
-
-
-
-
-
-```{r}
-cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
-              "#0072B2", "#D55E00", "#CC79A7")
-fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
-cols = c("Nowcasts" = cbPalette[6])
-states = unique(baseline_frame$geo_value)
-
-
-for (s in states) {
-  data_state = state_QT %>%
-    filter(geo_value == s) %>%
-    filter(time_value == issue_date) %>%
-    filter(time_value <= as.Date("2021-12-01"))
-  
-  p1 = ggplot(data_state, aes(x = time_value, y = GT)) +
-    geom_bar(stat = "identity", aes(fill = "Actual Hospitalizations"), alpha = 0.7) +
-    geom_line(aes(x = time_value, y = state_fit, color = "Nowcasts")) +
-    geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Nowcasts"), alpha = 0.4) +
-    scale_color_manual(name = "", values = fills) +
-    scale_fill_manual(name = "", values = fills) +
-    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
-                 labels = scales::label_date_short()) +
-    xlab("Date") +
-    ylab("Hospitalization rate") +
-    theme_bw() +
-    theme(legend.position = "bottom") +
-    ggtitle(paste0(toupper(s), ", quantile track"))
-    
-  print(p1)
-  
-}
-
-```
-
-```{r}
-cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
-              "#0072B2", "#D55E00", "#CC79A7")
-fills = c("Actual Hospitalizations" = cbPalette[1], "Nowcasts" = cbPalette[6])
-cols = c("Nowcasts" = cbPalette[6])
-states = unique(baseline_frame$geo_value)
-
-
-for (s in states) {
-  data_state = baseline_frame %>%
-    filter(geo_value == s) %>%
-    filter(time_value == issue_date) %>%
-    filter(time_value <= as.Date("2021-12-01"))
-  
-  p1 = ggplot(data_state, aes(x = time_value, y = GT)) +
-    geom_bar(stat = "identity", aes(fill = "Actual Hospitalizations"), alpha = 0.7) +
-    geom_line(aes(x = time_value, y = state_fit, color = "Nowcasts")) +
-    geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Nowcasts"), alpha = 0.4) +
-    scale_color_manual(name = "", values = fills) +
-    scale_fill_manual(name = "", values = fills) +
-    scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
-                 labels = scales::label_date_short()) +
-    xlab("Date") +
-    ylab("Hospitalization rate") +
-    theme_bw() +
-    theme(legend.position = "bottom") +
-    ggtitle(paste0(toupper(s), ", RAW quantile"))
-    
-  print(p1)
-  
+  quant_frame = rbind(quant_frame, state_QT) 
+  unweighted_frame = rbind(unweighted_frame, unwei_Quant)
+  weighted_frame = rbind(weighted_frame, wei_Quant)
 }
 
 ```
 
 
-
-
-
 ```{r}
-qt_is = state_QT %>%
+mi = unwei_Quant %>%
+  filter(time_value == issue_date) %>%
+  filter(geo_value == "mi") %>%
   group_by(geo_value) %>%
-  mutate(IS = interval_score(lower, upper, GT, miscover_lvl)) %>%
-  group_by(geo_value) %>%
-  summarise(IS = mean(IS))
-
-rawQ_is = baseline_frame %>%
-  group_by(geo_value) %>%
-  mutate(IS = interval_score(lower, upper, GT, miscover_lvl)) %>%
-  group_by(geo_value) %>%
-  summarise(IS = mean(IS))
-
-
-
-print(mean(qt_is$IS))
-print(mean(rawQ_is$IS))
-
-print(sd(qt_is$IS))
-print(sd(rawQ_is$IS))
-
+  mutate(d_t = max(state_fit, 1)) %>%
+  mutate(lower_score = (state_fit - GT) / d_t,
+        upper_score = (GT - state_fit) / d_t) %>%
+  summarise(lower_q = pmax(0, quantile(lower_score, probs = quant_lvl)),
+            upper_q = pmax(0, quantile(upper_score, probs = quant_lvl)))
+    
 ```
-
-```{r}
-qt_coverage = state_QT %>%
-  group_by(geo_value) %>%
-  summarise(cover = mean(lower < GT & GT < upper))
-
-rawQ_coverage = baseline_frame %>%
-  group_by(geo_value) %>%
-  summarise(cover = mean(lower < GT & GT < upper))
-
-print(mean(qt_coverage$cover))
-print(mean(rawQ_coverage$cover))
-
-
-```
-
-
 

@@ -2,6 +2,7 @@ source("assets_update/data_load.R")
 source("assets_update/unconstrained_state_level_big_lag.R")
 source("assets_update/unconstrained_national_level_big_lag.R")
 
+library(Hmisc)
 library(lubridate)
 library(tidyverse)
 library(vroom)
@@ -14,13 +15,11 @@ Implement quantile tracking and baselines, over a range of alpha (nominal miscov
 "
 quantileTrack_Baseline = function(alpha_vector) {
 
-
-  quant_frame = c()
-  base_frame = c()
+  quant_frame = c(); weighted_frame = c(); unweighted_frame = c()
 
   for (alpha in alpha_vector) {
 
-    state_QT = c(); baseline_frame = c()
+    state_QT = c(); unwei_Quant = c(); wei_Quant = c()
 
     miscover_lvl = alpha; quant_lvl = 1 - miscover_lvl/2
 
@@ -62,21 +61,34 @@ quantileTrack_Baseline = function(alpha_vector) {
       select(-opt_g) %>%
       rename(resid = .resid) %>%
       # Dampening: Cap the minimum of dampening to be 1
-      # This is roughly 60 quantile of the smallest hosp rate of a
-      # given state 
-      # Some subtlety, the conformal interval is defined as values that is
-      # less than a certain quantile of the score 
       mutate(d_t = pmax(abs(.fitted), 1)) %>%
       mutate(lower_e_t = -resid/d_t) %>%
       mutate(upper_e_t = resid / d_t) %>%
       summarise(lower_score = pmax(0, quantile(lower_e_t, probs = quant_lvl)),
                 upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl)))
 
-    state_quantile_frame = state_score_frame %>%
+    # Produce both weighted and unweighted quantiles 
+    unwei_quantiles = state_score_frame %>%
       rename(lower_q = lower_score,
             upper_q = upper_score)
 
-    
+    # Do we want to do initalization more carefully? 
+    weighted_quantiles = state_val_frame %>%
+      inner_join(tmp_state_gamma, by = "geo_value") %>%
+      filter(gamma == opt_g) %>%
+      mutate(backcast_lag = as.numeric(max(time_value) - time_value)) %>%
+      rename(resid = .resid) %>%
+      mutate(weights = exp(-gamma * backcast_lag)) %>%
+      mutate(d_t = pmax(abs(.fitted), 1)) %>%
+      mutate(lower_e_t = -resid/d_t) %>%
+      mutate(upper_e_t = resid / d_t) %>%
+      summarise(
+        lower_q = pmax(0, wtd.quantile(lower_e_t, 
+          weights = weights, probs = quant_lvl, normwt = TRUE)),
+        upper_q = pmax(0, wtd.quantile(upper_e_t, 
+          weights = weights, probs = quant_lvl, normwt = TRUE)))
+
+
     dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
                   as.Date("2021-07-01"), as.Date("2021-08-01"), as.Date("2021-09-01"),
                   as.Date("2021-10-01"), as.Date("2021-11-01"), as.Date("2021-12-01")) - 1
@@ -101,19 +113,9 @@ quantileTrack_Baseline = function(alpha_vector) {
             next
           }
           
-          
-          baseline_tmp = tmp %>%
-            select(geo_value, time_value, issue_date, state_fit, GT, state_optimal_gamma) %>%
-            inner_join(state_quantile_frame, by = "geo_value") %>%
-            mutate(d_t = pmax(state_fit, 1)) %>%
-            mutate(
-              lower = pmax(state_fit - lower_q * d_t, 0),
-              upper = pmax(state_fit + upper_q * d_t, 0)
-            ) %>%
-            mutate(alpha = miscover_lvl)
-          
-          
-          interval_tmp = tmp %>%
+
+          # Intervals via quantile tracking
+          track_tmp = tmp %>%
             select(geo_value, time_value, issue_date, state_fit, GT, 
                   resid) %>%
             inner_join(state_score_frame, by = "geo_value") %>%
@@ -127,9 +129,32 @@ quantileTrack_Baseline = function(alpha_vector) {
             ) %>%
             mutate(alpha = miscover_lvl)
 
-          state_QT = rbind(state_QT, interval_tmp) 
-          baseline_frame = rbind(baseline_frame, baseline_tmp) 
+          # Intervals with unweighted sample quantiles 
+          unwei_tmp = tmp %>%
+            select(geo_value, time_value, issue_date, state_fit, GT) %>%
+            inner_join(unwei_quantiles, by = "geo_value") %>%
+            mutate(d_t = pmax(state_fit, 1)) %>%
+            mutate(
+              lower = pmax(state_fit - lower_q * d_t, 0),
+              upper = pmax(state_fit + upper_q * d_t, 0)
+            ) %>%
+            mutate(alpha = miscover_lvl)
 
+          # Intervals with weighted sample quantiles 
+          weighted_tmp = tmp %>%
+            select(geo_value, time_value, issue_date, state_fit, GT) %>%
+            inner_join(weighted_quantiles, by = "geo_value") %>%
+            mutate(d_t = pmax(state_fit, 1)) %>%
+            mutate(
+              lower = pmax(state_fit - lower_q * d_t, 0),
+              upper = pmax(state_fit + upper_q * d_t, 0)
+            ) %>%
+            mutate(alpha = miscover_lvl)
+
+
+          state_QT = rbind(state_QT, track_tmp) 
+          unwei_Quant = rbind(unwei_Quant, unwei_tmp)
+          wei_Quant = rbind(wei_Quant, weighted_tmp) 
       }
       
       # Between world, compute coverage and update scores 
@@ -154,30 +179,47 @@ quantileTrack_Baseline = function(alpha_vector) {
         inner_join(state_lr, by = "geo_value") %>%
         inner_join(miscover_freq, by = "geo_value") %>%
         group_by(geo_value) %>%
-        # Why is lower minus???
         summarise(lower_score = lower_score + upper_lr * update_lower,
                   upper_score = upper_score + lower_lr * update_upper) %>%
         mutate(lower_score = pmax(0, lower_score),
               upper_score = pmax(0, upper_score))
       
-      # Do something a bit more sophisticated for empirical quantiles
-      # We respect the weigthing of our models, and find quantiles via weighting
-      # Again, only look at nowcasts
-      state_quantile_frame = baseline_frame %>%
+      # Consider both weighted and unweighted empirical quantiles
+      state_val_frame = state_produce_fv(gammas, train_end, version)
+      state_val_gamma = state_val_frame %>%
+        group_by(geo_value, gamma) %>%
+        summarise(MAE = mean(abs(.resid))) %>%
+        mutate(Min = min(MAE)) %>%
+        filter(MAE == Min) %>%
+        select(geo_value, gamma)
+
+      weighted_quantiles = wei_Quant %>%
         filter(time_value == issue_date) %>%
+        inner_join(state_val_gamma, by = "geo_value") %>%
         group_by(geo_value) %>%
-        mutate(weights = exp(-state_optimal_gamma * as.numeric(max(time_value) - time_value))) %>%
+        mutate(weights = exp(-gamma * as.numeric(max(time_value) - time_value))) %>%
         mutate(d_t = max(state_fit, 1)) %>%
         mutate(lower_score = (state_fit - GT) / d_t,
               upper_score = (GT - state_fit) / d_t) %>%
         summarise(lower_q = pmax(0, wtd.quantile(lower_score, 
-                    weights = weights, probs = quant_lvl)),
-                  upper_q = pmax(0, quantile(upper_score, 
-                    weights = weights, probs = quant_lvl)))
+                    weights = weights, probs = quant_lvl, normwt = TRUE)),
+                  upper_q = pmax(0, wtd.quantile(upper_score, 
+                    weights = weights, probs = quant_lvl, normwt = TRUE)))
+
+      unwei_quantiles = unwei_Quant %>%
+        filter(time_value == issue_date) %>%
+        group_by(geo_value) %>%
+        mutate(d_t = max(state_fit, 1)) %>%
+        mutate(lower_score = (state_fit - GT) / d_t,
+              upper_score = (GT - state_fit) / d_t) %>%
+        summarise(lower_q = pmax(0, quantile(lower_score, probs = quant_lvl)),
+                  upper_q = pmax(0, quantile(upper_score, probs = quant_lvl)))
 
 
     }
-    quant_frame = rbind(quant_frame, state_QT); base_frame = rbind(base_frame, baseline_frame)
+    quant_frame = rbind(quant_frame, state_QT) 
+    unweighted_frame = rbind(unweighted_frame, unwei_Quant)
+    weighted_frame = rbind(weighted_frame, wei_Quant)
   }
-  return(list(as.tibble(quant_frame), as.tibble(base_frame)))
+  return(list(as_tibble(quant_frame), as_tibble(unweighted_frame), as_tibble(weighted_frame)))
 }
