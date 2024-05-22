@@ -1,0 +1,192 @@
+---
+title: "wis-plot"
+output: html_document
+date: "2024-05-17"
+---
+
+# Purpose
+
+Plot IWS of weighted, unweighted empirical quantile and quantile tracking
+
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+
+# Interval scores 
+qt_2_is = readRDS("metric/qt_2_is.rds")
+qt_4_is = readRDS("metric/qt_4_is.rds")
+unwei_2_is = readRDS("metric/unwei_2_is.rds")
+unwei_4_is = readRDS("metric/unwei_4_is.rds")
+wei_2_is = readRDS("metric/wei_2_is.rds")
+wei_4_is = readRDS("metric/wei_4_is.rds")
+linear_2_is = readRDS("metric/linear_2_is.rds")
+linear_4_is = readRDS("metric/linear_4_is.rds")
+
+
+# Coverage
+qt_2_cover = readRDS("metric/qt_2_cover.rds")
+qt_4_cover = readRDS("metric/qt_4_cover.rds")
+unwei_2_cover = readRDS("metric/unwei_2_cover.rds")
+unwei_4_cover = readRDS("metric/unwei_4_cover.rds")
+wei_2_cover = readRDS("metric/wei_2_cover.rds")
+wei_4_cover = readRDS("metric/wei_4_cover.rds")
+linear_2_cover = readRDS("metric/linear_2_cover.rds")
+linear_4_cover = readRDS("metric/linear_4_cover.rds")
+
+```
+
+
+
+# Plot at alpha = 0.2 
+
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+
+colrs = c("Quantile tracking" = cbPalette[7], "Weighted quantile" = cbPalette[4],
+          "Linear regression" = cbPalette[3])
+          # "Unweighted quantile" = cbPalette[3])
+transpar = 0.4
+
+p1 = ggplot(qt_2_is) +
+  geom_path(aes(x = backcast_lag, y = qt_IS, color = "Quantile tracking"), linewidth = 1) +
+  geom_ribbon(aes(x = backcast_lag, ymin = qt_IS - qt_se, ymax = qt_IS + qt_se, 
+               fill = "Quantile tracking"), alpha = transpar) +
+  geom_path(data = linear_2_is, aes(x = backcast_lag, y = linear_IS, color = "Linear regression")) +
+  geom_ribbon(data = linear_2_is, aes(x = backcast_lag, ymin = linear_IS - linear_se, 
+              ymax = linear_IS + linear_se, fill = "Linear regression"), alpha = transpar) +
+  geom_path(data = wei_2_is, aes(x = backcast_lag, y = wei_IS, color = "Weighted quantile")) +
+  geom_ribbon(data = wei_2_is, aes(x = backcast_lag, ymin = wei_IS - wei_se, ymax = wei_IS + wei_se,
+              fill = "Weighted quantile"), alpha = transpar) +
+  scale_color_manual(name = "", values = colrs) +
+  scale_fill_manual(name = "", values = colrs) +
+  xlab("Backcast lag") +
+  ylab("Interval Score") +
+  scale_x_continuous(n.breaks = 6) +
+  ggtitle("alpha = 0.2") +
+  theme(legend.text = element_text(size = 11),
+        axis.title = element_text(size = 11),
+        plot.title = element_text(size = 12)) + theme_bw()
+
+```
+
+
+
+
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+
+colrs = c("Quantile tracking" = cbPalette[7], "Weighted quantile" = cbPalette[4],
+          "Linear regression" = cbPalette[3])
+          # "Unweighted quantile" = cbPalette[3]) 
+transpar = 0.4
+
+p2 = ggplot(qt_2_cover) +
+  geom_path(aes(x = backcast_lag, y = coverage, color = "Quantile tracking"), linewidth = 1) +
+  geom_ribbon(aes(x = backcast_lag, ymin = coverage - se, ymax = coverage + se, 
+               fill = "Quantile tracking"), alpha = transpar) +
+  geom_path(data = linear_2_cover, aes(x = backcast_lag, y = coverage, color = "Linear regression")) +
+  geom_ribbon(data = linear_2_cover, aes(x = backcast_lag, ymin = coverage - se, ymax = coverage + se,
+              fill = "Linear regression"), alpha = transpar) +
+  geom_path(data = wei_2_cover, aes(x = backcast_lag, y = coverage, color = "Weighted quantile")) +
+  geom_ribbon(data = wei_2_cover, aes(x = backcast_lag, ymin = coverage - se, ymax = coverage + se,
+              fill = "Weighted quantile"), alpha = transpar) +
+  scale_color_manual(name = "", values = colrs) +
+  scale_fill_manual(name = "", values = colrs) +
+  xlab("Backcast lag") +
+  ylab("Coverage") +
+  scale_x_continuous(n.breaks = 6) +
+  ggtitle("alpha = 0.2") +
+  theme(legend.text = element_text(size = 11),
+        axis.title = element_text(size = 11),
+        plot.title = element_text(size = 12)) + theme_bw()
+
+```
+
+
+```{r}
+ggarrange(p1, p2, nrow=1, common.legend=TRUE, legend="bottom")
+```
+
+
+
+
+
+# alpha = 0.4
+
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+
+colrs = c("Quantile tracking" = cbPalette[7], "Weighted quantile" = cbPalette[4],
+          "Linear regression" = cbPalette[3])
+          # "Unweighted quantile" = cbPalette[3]) 
+transpar = 0.4
+
+
+p1 = ggplot(qt_4_is) +
+  geom_path(aes(x = backcast_lag, y = qt_IS, color = "Quantile tracking"), linewidth = 1) +
+  geom_ribbon(aes(x = backcast_lag, ymin = qt_IS - qt_se, ymax = qt_IS + qt_se, 
+               fill = "Quantile tracking"), alpha = transpar) +
+  geom_path(data = linear_4_is, aes(x = backcast_lag, y = linear_IS, color = "Linear regression")) +
+  geom_ribbon(data = linear_4_is, aes(x = backcast_lag, ymin = linear_IS - linear_se, 
+              ymax = linear_IS + linear_se, fill = "Linear regression"), alpha = transpar) +
+  geom_path(data = wei_4_is, aes(x = backcast_lag, y = wei_IS, color = "Weighted quantile")) +
+  geom_ribbon(data = wei_4_is, aes(x = backcast_lag, ymin = wei_IS - wei_se, ymax = wei_IS + wei_se,
+              fill = "Weighted quantile"), alpha = transpar) +
+  scale_color_manual(name = "", values = colrs) +
+  scale_fill_manual(name = "", values = colrs) +
+  xlab("Backcast lag") +
+  ylab("Interval Score") +
+  scale_x_continuous(n.breaks = 6) +
+  ggtitle("alpha = 0.4") +
+  theme(legend.text = element_text(size = 11),
+        axis.title = element_text(size = 11),
+        plot.title = element_text(size = 12)) + theme_bw()
+
+
+```
+
+```{r}
+cbPalette = c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+              "#0072B2", "#D55E00", "#CC79A7")
+
+
+colrs = c("Quantile tracking" = cbPalette[7], "Weighted quantile" = cbPalette[4],
+          "Linear regression" = cbPalette[3])
+          # "Unweighted quantile" = cbPalette[3]) 
+transpar = 0.4
+
+
+p2 = ggplot(qt_4_cover) +
+  geom_path(aes(x = backcast_lag, y = coverage, color = "Quantile tracking"), linewidth = 1) +
+  geom_ribbon(aes(x = backcast_lag, ymin = coverage - se, ymax = coverage + se, 
+               fill = "Quantile tracking"), alpha = transpar) +
+  geom_path(data = linear_4_cover, aes(x = backcast_lag, y = coverage, color = "Linear regression")) +
+  geom_ribbon(data = linear_4_cover, aes(x = backcast_lag, ymin = coverage - se, ymax = coverage + se,
+              fill = "Linear regression"), alpha = transpar) +
+  geom_path(data = wei_4_cover, aes(x = backcast_lag, y = coverage, color = "Weighted quantile")) +
+  geom_ribbon(data = wei_4_cover, aes(x = backcast_lag, ymin = coverage - se, ymax = coverage + se,
+              fill = "Weighted quantile"), alpha = transpar) +
+  scale_color_manual(name = "", values = colrs) +
+  scale_fill_manual(name = "", values = colrs) +
+  xlab("Backcast lag") +
+  ylab("Coverage") +
+  scale_x_continuous(n.breaks = 6) +
+  ggtitle("alpha = 0.2") +
+  theme(legend.text = element_text(size = 11),
+        axis.title = element_text(size = 11),
+        plot.title = element_text(size = 12)) + theme_bw()
+
+
+```
+
+
+```{r}
+ggarrange(p1, p2, nrow=1, common.legend=TRUE, legend="bottom")
+```

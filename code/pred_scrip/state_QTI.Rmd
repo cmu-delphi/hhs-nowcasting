@@ -21,7 +21,6 @@ frames = quantileTrack_Baseline(c(0.2, 0.4))
 saveRDS(frames, file = "../../predictions/quanTrack_Baseline.rds")
 ```
 
-
 ```{r}
 source("assets_update/data_load.R")
 source("assets_update/unconstrained_state_level_big_lag.R")
@@ -30,6 +29,11 @@ library(Hmisc)
 
 state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
 
+```
+
+
+
+```{r}
 
 quant_frame = c(); weighted_frame = c(); unweighted_frame = c()
 
@@ -80,9 +84,15 @@ for (alpha in c(0.2, 0.4)) {
     mutate(d_t = pmax(abs(.fitted), 1)) %>%
     mutate(lower_e_t = -resid/d_t) %>%
     mutate(upper_e_t = resid / d_t) %>%
+    mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
     summarise(lower_score = pmax(0, quantile(lower_e_t, probs = quant_lvl)),
-              upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl)))
-
+              upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl))) %>%
+    mutate(backcast_lag = 0) %>%
+    group_by(geo_value) %>%
+    complete(backcast_lag = 0:10) %>%
+    fill(lower_score, upper_score, .direction="down")
+  
+  
   # Produce both weighted and unweighted quantiles 
   unwei_quantiles = state_score_frame %>%
     rename(lower_q = lower_score,
@@ -99,10 +109,15 @@ for (alpha in c(0.2, 0.4)) {
     mutate(lower_e_t = -resid/d_t) %>%
     mutate(upper_e_t = resid / d_t) %>%
     summarise(
-      lower_q = pmax(0, wtd.quantile(lower_e_t, 
+      lower_q = pmax(0, wtd.quantile(lower_e_t,  
         weights = weights, probs = quant_lvl, normwt = TRUE)),
       upper_q = pmax(0, quantile(upper_e_t, 
-        weights = weights, probs = quant_lvl, normwt = TRUE)))
+        weights = weights, probs = quant_lvl, normwt = TRUE))) %>%
+    mutate(backcast_lag = 0) %>%
+    group_by(geo_value) %>%
+    complete(backcast_lag = 0:10) %>%
+    fill(lower_q, upper_q, .direction="down")
+
 
 
   dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
@@ -134,8 +149,8 @@ for (alpha in c(0.2, 0.4)) {
         track_tmp = tmp %>%
           select(geo_value, time_value, issue_date, state_fit, GT, 
                 resid) %>%
-          inner_join(state_score_frame, by = "geo_value") %>%
-          # Padding parameter, TODO: Change to additive padding (how?)
+          mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+          inner_join(state_score_frame, by = c("geo_value", "backcast_lag")) %>%
           mutate(d_t = pmax(state_fit, 1)) %>%
           # Construct asymmetric intervals
           # Upper score is used to construct the LOWER end point
@@ -144,11 +159,13 @@ for (alpha in c(0.2, 0.4)) {
             upper = pmax(state_fit + upper_score * d_t, 0)
           ) %>%
           mutate(alpha = miscover_lvl)
-
+        
+        
         # Intervals with unweighted sample quantiles 
         unwei_tmp = tmp %>%
           select(geo_value, time_value, issue_date, state_fit, GT) %>%
-          inner_join(unwei_quantiles, by = "geo_value") %>%
+          mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+          inner_join(unwei_quantiles, by = c("geo_value", "backcast_lag")) %>%
           mutate(d_t = pmax(state_fit, 1)) %>%
           mutate(
             lower = pmax(state_fit - lower_q * d_t, 0),
@@ -159,7 +176,8 @@ for (alpha in c(0.2, 0.4)) {
         # Intervals with weighted sample quantiles 
         weighted_tmp = tmp %>%
           select(geo_value, time_value, issue_date, state_fit, GT, state_optimal_gamma) %>%
-          inner_join(weighted_quantiles, by = "geo_value") %>%
+          mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+          inner_join(weighted_quantiles, by = c("geo_value", "backcast_lag")) %>%
           mutate(d_t = pmax(state_fit, 1)) %>%
           mutate(
             lower = pmax(state_fit - lower_q * d_t, 0),
@@ -173,11 +191,12 @@ for (alpha in c(0.2, 0.4)) {
         wei_Quant = rbind(wei_Quant, weighted_tmp) 
     }
     
+
     # Between world, compute coverage and update scores 
     miscover_freq = state_QT %>%
       filter(time_value >= as.Date(window_date)) %>%
-      filter(time_value == issue_date) %>%
-      group_by(geo_value) %>%
+      filter(backcast_lag <= 15) %>%
+      group_by(geo_value, backcast_lag) %>%
       # Track lower and upper seperately 
       summarise(update_lower = sum((GT < lower) - miscover_lvl/2),
                 update_upper = sum((GT > upper) - miscover_lvl/2))
@@ -185,21 +204,24 @@ for (alpha in c(0.2, 0.4)) {
     state_lr = state_QT %>%
       group_by(geo_value) %>%
       filter(time_value >= as.Date(window_date)) %>%
-      filter(time_value == issue_date) %>%
       mutate(upper_scores = (state_fit - GT) / d_t) %>%
       mutate(lower_scores = -(state_fit - GT) / d_t) %>%
+      filter(backcast_lag <= 15) %>%
+      group_by(geo_value, backcast_lag) %>%
       summarise(upper_lr = 0.03 * max(upper_scores),
-                lower_lr = 0.03 * max(lower_score)) 
+                lower_lr = 0.03 * max(lower_score))
       
     state_score_frame = state_score_frame %>%
-      inner_join(state_lr, by = "geo_value") %>%
-      inner_join(miscover_freq, by = "geo_value") %>%
-      group_by(geo_value) %>%
-      summarise(lower_score = lower_score + upper_lr * update_lower,
-                upper_score = upper_score + lower_lr * update_upper) %>%
+      inner_join(state_lr, by = c("geo_value", "backcast_lag")) %>%
+      inner_join(miscover_freq, by = c("geo_value", "backcast_lag")) %>%
+      group_by(geo_value, backcast_lag) %>%
+      summarise(lower_score = lower_score + lower_lr * update_lower,
+                upper_score = upper_score + upper_lr * update_upper) %>%
       mutate(lower_score = pmax(0, lower_score),
-            upper_score = pmax(0, upper_score))
+            upper_score = pmax(0, upper_score)) 
+
     
+      
     # Consider both weighted and unweighted empirical quantiles 
     state_val_frame = state_produce_fv(gammas, train_end, version)
     state_val_gamma = state_val_frame %>%
@@ -211,26 +233,28 @@ for (alpha in c(0.2, 0.4)) {
     
     
     weighted_quantiles = wei_Quant %>%
-      filter(time_value == issue_date) %>%
       group_by(geo_value) %>%
-      mutate(backcast_lag = as.numeric(max(time_value) - time_value)) %>%
+      mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
       mutate(weights = exp(-state_optimal_gamma * backcast_lag)) %>%
+      filter(backcast_lag <= 15) %>%
       mutate(d_t = max(state_fit, 1)) %>%
       mutate(lower_score = (state_fit - GT) / d_t,
             upper_score = (GT - state_fit) / d_t) %>%
+      group_by(geo_value, backcast_lag) %>%
       summarise(lower_q = pmax(0, wtd.quantile(lower_score, 
                   weights = weights, probs = quant_lvl, normwt = TRUE)),
                 upper_q = pmax(0, wtd.quantile(upper_score, 
                   weights = weights, probs = quant_lvl, normwt = TRUE)))
     
-    break
-    
+
     unwei_quantiles = unwei_Quant %>%
-      filter(time_value == issue_date) %>%
       group_by(geo_value) %>%
+      mutate(backcast_lag = as.numeric(issue_date - time_value)) %>%
+      filter(backcast_lag <= 15) %>%
       mutate(d_t = max(state_fit, 1)) %>%
       mutate(lower_score = (state_fit - GT) / d_t,
             upper_score = (GT - state_fit) / d_t) %>%
+      group_by(geo_value, backcast_lag) %>%
       summarise(lower_q = pmax(0, quantile(lower_score, probs = quant_lvl)),
                 upper_q = pmax(0, quantile(upper_score, probs = quant_lvl)))
     
@@ -242,19 +266,10 @@ for (alpha in c(0.2, 0.4)) {
   weighted_frame = rbind(weighted_frame, wei_Quant)
 }
 
+frames = list(as_tibble(quant_frame), as_tibble(unweighted_frame), as_tibble(weighted_frame))
+saveRDS(frames, file = "../../predictions/quanTrack_Baseline.rds")
+
 ```
 
 
-```{r}
-mi = unwei_Quant %>%
-  filter(time_value == issue_date) %>%
-  filter(geo_value == "mi") %>%
-  group_by(geo_value) %>%
-  mutate(d_t = max(state_fit, 1)) %>%
-  mutate(lower_score = (state_fit - GT) / d_t,
-        upper_score = (GT - state_fit) / d_t) %>%
-  summarise(lower_q = pmax(0, quantile(lower_score, probs = quant_lvl)),
-            upper_q = pmax(0, quantile(upper_score, probs = quant_lvl)))
-    
-```
 

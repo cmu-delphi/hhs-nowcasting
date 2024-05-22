@@ -1,0 +1,272 @@
+---
+title: "WIS-coverage"
+output: html_document
+date: "2024-05-17"
+---
+
+# Purpose
+
+Compute WIS and coverage of intervals generated from sample quantile (weighted, unweighted) and quantile tracking
+
+
+```{r, message=FALSE}
+library(tidyverse)
+library(vroom)
+
+uspop = covidcast::state_census %>%
+  select(ABBR, POPESTIMATE2019) %>%
+  rename(geo_value = ABBR) %>%
+  rename(pop = POPESTIMATE2019) %>%
+  mutate(geo_value = tolower(geo_value)) %>%
+  slice(., 2:(n() - 4))
+```
+
+```{r}
+list_intervals = readRDS("../predictions/quanTrack_Baseline.rds")
+linear_interval = vroom("../predictions/bl_versioned_hhs_mixed.csv") %>%
+  select(geo_value, time_value, issue_date, GT, lwr_60, upr_60, lwr_80, upr_80)
+
+
+state_QT = list_intervals[[1]]; unweighted_frame = list_intervals[[2]]; weighted_frame = list_intervals[[3]]
+
+state_QT = state_QT %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value))
+unweighted_frame = unweighted_frame %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value))
+weighted_frame = weighted_frame %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value))
+
+state_QT_2 = state_QT %>%
+  filter(alpha == 0.2)
+state_QT_4 = state_QT %>%
+  filter(alpha == 0.4)
+
+unweighted_2 = unweighted_frame %>%
+  filter(alpha == 0.2)
+unweighted_4 = unweighted_frame %>%
+  filter(alpha == 0.4)
+
+weighted_2 = weighted_frame %>%
+  filter(alpha == 0.2)
+weighted_4 = weighted_frame %>%
+  filter(alpha == 0.4)
+
+linear_2 = linear_interval %>%
+  select(geo_value, time_value, issue_date, GT, lwr_80, upr_80) %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value))
+
+linear_4 = linear_interval %>%
+  select(geo_value, time_value, issue_date, GT, lwr_60, upr_60) %>%
+  mutate(backcast_lag = as.numeric(issue_date - time_value))
+
+
+
+```
+
+
+
+
+# Score calculaiton
+```{r}
+interval_score = function(L, U, y, alpha) {
+  # Calculate the width of the interval
+  width_penalty = U - L
+  
+  # Calculate the penalty for missing below the lower bound
+  lower_miss_penalty = ifelse(y < L, (L - y) * (2 / alpha), 0)
+  
+  # Calculate the penalty for missing above the upper bound
+  upper_miss_penalty = ifelse(y > U, (y - U) * (2 / alpha), 0)
+  
+  # Return the total interval score
+  return(width_penalty + lower_miss_penalty + upper_miss_penalty)
+}
+```
+
+
+# WIS
+```{r, message=FALSE}
+qt_2_is = state_QT_2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(is = mean(interval_score(lower, upper, GT, 0.2))) %>%
+  group_by(backcast_lag) %>%
+  summarise(qt_IS = mean(is),
+            qt_se = sd(is)/sqrt(50))
+
+qt_4_is = state_QT_4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(is = mean(interval_score(lower, upper, GT, 0.4))) %>%
+  group_by(backcast_lag) %>%
+  summarise(qt_IS = mean(is),
+            qt_se = sd(is)/sqrt(50))
+
+unwei_2_is = unweighted_2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(IS = mean(interval_score(lower, upper, GT, 0.2))) %>%
+  group_by(backcast_lag) %>%
+  summarise(unwei_IS = mean(IS),
+            unwei_se = sd(IS) / sqrt(50))
+
+unwei_4_is = unweighted_4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(IS = mean(interval_score(lower, upper, GT, 0.4))) %>%
+  group_by(backcast_lag) %>%
+  summarise(unwei_IS = mean(IS),
+            unwei_se = sd(IS) / sqrt(50))
+
+wei_2_is = weighted_2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(IS = mean(interval_score(lower, upper, GT, 0.2))) %>%
+  group_by(backcast_lag) %>%
+  summarise(wei_IS = mean(IS),
+            wei_se = sd(IS) / sqrt(50))
+
+wei_4_is = weighted_4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(IS = mean(interval_score(lower, upper, GT, 0.4))) %>%
+  group_by(backcast_lag) %>%
+  summarise(wei_IS = mean(IS),
+            wei_se = sd(IS) / sqrt(50))
+
+
+linear_2_is = linear_2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(IS = mean(interval_score(lwr_80, upr_80, GT, 0.2))) %>%
+  group_by(backcast_lag) %>%
+  summarise(linear_IS = mean(IS),
+            linear_se = sd(IS) / sqrt(50))
+
+linear_4_is = linear_4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(IS = mean(interval_score(lwr_60, upr_60, GT, 0.4))) %>%
+  group_by(backcast_lag) %>%
+  summarise(linear_IS = mean(IS),
+            linear_se = sd(IS) / sqrt(50))
+
+
+
+score_2 = qt_2_is %>%
+  inner_join(unwei_2_is, by = c("backcast_lag")) %>%
+  inner_join(wei_2_is, by = c("backcast_lag")) %>%
+  inner_join(linear_2_is, by = c("backcast_lag"))
+
+  
+
+
+
+score_4 = qt_4_is %>%
+  inner_join(unwei_4_is, by = c("backcast_lag")) %>%
+  inner_join(wei_4_is, by = c("backcast_lag")) %>%
+  inner_join(linear_2_is, by = "backcast_lag")
+
+
+```
+
+# Compute coverage
+```{r, message=FALSE}
+qt_2_cover = state_QT_2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(cover = mean(lower < GT & GT < upper)) %>%
+  group_by(backcast_lag) %>%
+  summarise(coverage = mean(cover),
+            se = sd(cover) / sqrt(50))
+
+qt_4_cover = state_QT_4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(cover = mean(lower < GT & GT < upper)) %>%
+  group_by(backcast_lag) %>%
+  summarise(coverage = mean(cover),
+            se = sd(cover) / sqrt(50))
+
+wei_2_cover = weighted_2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(cover = mean(lower < GT & GT < upper)) %>%
+  group_by(backcast_lag) %>%
+  summarise(coverage = mean(cover),
+            se = sd(cover) / sqrt(50))
+
+
+wei_4_cover = weighted_4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(cover = mean(lower < GT & GT < upper)) %>%
+  group_by(backcast_lag) %>%
+  summarise(coverage = mean(cover),
+            se = sd(cover) / sqrt(50))
+
+
+unwei_2_cover = unweighted_2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(cover = mean(lower < GT & GT < upper)) %>%
+  group_by(backcast_lag) %>%
+  summarise(coverage = mean(cover),
+            se = sd(cover) / sqrt(50))
+
+unwei_4_cover = unweighted_4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(cover = mean(lower < GT & GT < upper)) %>%
+  group_by(backcast_lag) %>%
+  summarise(coverage = mean(cover),
+            se = sd(cover) / sqrt(50))
+
+
+linear_2_cover = linear_2 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(cover = mean(lwr_80 < GT & GT < upr_80)) %>%
+  group_by(backcast_lag) %>%
+  summarise(coverage = mean(cover),
+            se = sd(cover) / sqrt(50))
+
+
+
+linear_4_cover = linear_4 %>%
+  group_by(geo_value, backcast_lag) %>%
+  filter(backcast_lag <= 10) %>%
+  summarise(cover = mean(lwr_60 < GT & GT < upr_60)) %>%
+  group_by(backcast_lag) %>%
+  summarise(coverage = mean(cover),
+            se = sd(cover) / sqrt(50))
+
+```
+
+
+```{r}
+# Save interval scores
+saveRDS(qt_2_is, file = "metric/qt_2_is.rds")
+saveRDS(qt_4_is, file = "metric/qt_4_is.rds")
+saveRDS(unwei_2_is, file = "metric/unwei_2_is.rds")
+saveRDS(unwei_4_is, file = "metric/unwei_4_is.rds")
+saveRDS(wei_2_is, file = "metric/wei_2_is.rds")
+saveRDS(wei_4_is, file = "metric/wei_4_is.rds")
+saveRDS(linear_2_is, file = "metric/linear_2_is.rds")
+saveRDS(linear_4_is, file = "metric/linear_4_is.rds")
+
+
+# Save coverage
+saveRDS(qt_2_cover, file = "metric/qt_2_cover.rds")
+saveRDS(qt_4_cover, file = "metric/qt_4_cover.rds")
+saveRDS(unwei_2_cover, file = "metric/unwei_2_cover.rds")
+saveRDS(unwei_4_cover, file = "metric/unwei_4_cover.rds")
+saveRDS(wei_2_cover, file = "metric/wei_2_cover.rds")
+saveRDS(wei_4_cover, file = "metric/wei_4_cover.rds")
+saveRDS(linear_2_cover, file = "metric/linear_2_cover.rds")
+saveRDS(linear_4_cover, file = "metric/linear_4_cover.rds")
+```
+
+
+
+
