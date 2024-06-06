@@ -1,0 +1,29 @@
+---
+title: "total_claims"
+output: html_document
+date: "2024-05-29"
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(vroom)
+```
+
+
+
+```{r}
+in_sum = vroom("../versioned_feature/rebuild_inpatient_raw_avg.csv") %>%
+  filter(time_value >= as.Date("2020-11-01")) %>%
+  filter(issue_date == time_value + 60) %>%
+  summarise(total_sum = sum(value_total, na.rm = TRUE),
+            covid_sum = sum(value_covid, na.rm = TRUE))
+
+
+out_sum = vroom("../versioned_feature/rebuild_outpatient_raw_avg.csv") %>%
+  filter(time_value >= as.Date("2020-11-01")) %>%
+  filter(issue_date == time_value + 60) %>%
+  summarise(total_sum = sum(value_total, na.rm = TRUE),
+            covid_sum = sum(value_covid, na.rm = TRUE))
+
+```
+

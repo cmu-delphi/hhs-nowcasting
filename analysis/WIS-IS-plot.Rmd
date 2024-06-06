@@ -178,7 +178,7 @@ p2 = ggplot(qt_4_cover) +
   xlab("Backcast lag") +
   ylab("Coverage") +
   scale_x_continuous(n.breaks = 6) +
-  ggtitle("alpha = 0.2") +
+  ggtitle("alpha = 0.4") +
   theme(legend.text = element_text(size = 11),
         axis.title = element_text(size = 11),
         plot.title = element_text(size = 12)) + theme_bw()
