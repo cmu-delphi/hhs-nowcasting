@@ -157,7 +157,7 @@ for (window_date in dump_dates) {
     mutate(
       # Generate predictions with 60% prediction interval
       preds_60 = {
-        pred_df = as.data.frame(predict(national_model, newdata = national_test, interval = "prediction", level = 0.6))
+        pred_df = as.data.frame(predict(national_selected_models, newdata = national_test, interval = "prediction", level = 0.6))
         names(pred_df)[names(pred_df) == "lwr"] = "lwr_60"
         names(pred_df)[names(pred_df) == "upr"] = "upr_60"
         names(pred_df)[names(pred_df) == "fit"] = "national_fit"
@@ -165,7 +165,7 @@ for (window_date in dump_dates) {
       },
       # Generate predictions with 80% prediction interval
       preds_80 = {
-        pred_df = as.data.frame(predict(national_model, newdata = national_test, interval = "prediction", level = 0.8))
+        pred_df = as.data.frame(predict(national_selected_models, newdata = national_test, interval = "prediction", level = 0.8))
         names(pred_df)[names(pred_df) == "lwr"] = "lwr_80"
         names(pred_df)[names(pred_df) == "upr"] = "upr_80"
         # No renaming to `state_fit` here as we will discard this fit
@@ -174,7 +174,7 @@ for (window_date in dump_dates) {
     ) %>%
     unnest(c(preds_60, preds_80)) %>%
     select(-fit) %>%  # Discarding the duplicate fit from the 80% prediction
-    mutate(resid = abs(state_fit - GT))
+    mutate(resid = abs(national_fit - GT))
     
 
     state_Tested = state_test %>%
