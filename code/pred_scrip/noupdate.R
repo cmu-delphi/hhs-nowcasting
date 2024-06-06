@@ -241,7 +241,7 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
       inner_join(state_selected_models) %>%
       verify(nrow(.) != 0)
     
-    national_test = national_test %>%
+    national_Tested = national_test %>%
     mutate(
       # Generate predictions with 60% prediction interval
       preds_60 = {
