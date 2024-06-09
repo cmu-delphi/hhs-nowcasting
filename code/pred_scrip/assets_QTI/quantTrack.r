@@ -11,15 +11,26 @@ state_pred = vroom("../../predictions/bl_versioned_hhs_mixed.csv")
 
 
 "
-Implement quantile tracking and baselines, over a range of alpha (nominal miscoverage) lvl
+Implement quantile tracking and weighted sample quantiles. The sample quantiles 
+have the same decay parameter as selected parameter in regression model.
+The function works as a wrapper around produced predictions. 
+
+Args:
+  alpha_vecotr: A vector of nominal miscoverage levels. 
+
+Return:
+  list of (quant_frame, weighted_frame). 
+    quant_frame: Intervals formed by quantile tracking, at different nominal miscoverage level alpha.
+    weighted_frame: Intervals formed by weighted sample quantiles, at different nominal miscoverage level alpha.
+
 "
 quantileTrack_Baseline = function(alpha_vector) {
 
-  quant_frame = c(); weighted_frame = c(); unweighted_frame = c()
+  quant_frame = c(); weighted_frame = c()
 
   for (alpha in alpha_vector) {
 
-    state_QT = c(); unwei_Quant = c(); wei_Quant = c()
+    state_QT = c(); wei_Quant = c()
 
     miscover_lvl = alpha; quant_lvl = 1 - miscover_lvl/2
 
@@ -68,11 +79,6 @@ quantileTrack_Baseline = function(alpha_vector) {
                 upper_score = pmax(0, quantile(upper_e_t, probs = quant_lvl)))
 
     # Produce both weighted and unweighted quantiles 
-    unwei_quantiles = state_score_frame %>%
-      rename(lower_q = lower_score,
-            upper_q = upper_score)
-
-    # Do we want to do initalization more carefully? 
     weighted_quantiles = state_val_frame %>%
       inner_join(tmp_state_gamma, by = "geo_value") %>%
       filter(gamma == opt_g) %>%
@@ -129,17 +135,6 @@ quantileTrack_Baseline = function(alpha_vector) {
             ) %>%
             mutate(alpha = miscover_lvl)
 
-          # Intervals with unweighted sample quantiles 
-          unwei_tmp = tmp %>%
-            select(geo_value, time_value, issue_date, state_fit, GT) %>%
-            inner_join(unwei_quantiles, by = "geo_value") %>%
-            mutate(d_t = pmax(state_fit, 1)) %>%
-            mutate(
-              lower = pmax(state_fit - lower_q * d_t, 0),
-              upper = pmax(state_fit + upper_q * d_t, 0)
-            ) %>%
-            mutate(alpha = miscover_lvl)
-
           # Intervals with weighted sample quantiles 
           weighted_tmp = tmp %>%
             select(geo_value, time_value, issue_date, state_fit, GT) %>%
@@ -153,7 +148,6 @@ quantileTrack_Baseline = function(alpha_vector) {
 
 
           state_QT = rbind(state_QT, track_tmp) 
-          unwei_Quant = rbind(unwei_Quant, unwei_tmp)
           wei_Quant = rbind(wei_Quant, weighted_tmp) 
       }
       
@@ -206,20 +200,11 @@ quantileTrack_Baseline = function(alpha_vector) {
                   upper_q = pmax(0, wtd.quantile(upper_score, 
                     weights = weights, probs = quant_lvl, normwt = TRUE)))
 
-      unwei_quantiles = unwei_Quant %>%
-        filter(time_value == issue_date) %>%
-        group_by(geo_value) %>%
-        mutate(d_t = max(state_fit, 1)) %>%
-        mutate(lower_score = (state_fit - GT) / d_t,
-              upper_score = (GT - state_fit) / d_t) %>%
-        summarise(lower_q = pmax(0, quantile(lower_score, probs = quant_lvl)),
-                  upper_q = pmax(0, quantile(upper_score, probs = quant_lvl)))
 
 
     }
     quant_frame = rbind(quant_frame, state_QT) 
-    unweighted_frame = rbind(unweighted_frame, unwei_Quant)
     weighted_frame = rbind(weighted_frame, wei_Quant)
   }
-  return(list(as_tibble(quant_frame), as_tibble(unweighted_frame), as_tibble(weighted_frame)))
+  return(list(as_tibble(quant_frame), as_tibble(weighted_frame)))
 }
