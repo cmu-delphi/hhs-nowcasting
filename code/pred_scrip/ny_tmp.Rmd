@@ -4,6 +4,11 @@ output: html_document
 date: "2023-12-14"
 ---
 
+#  Purpose
+
+This script investigates why a portion of nowcasts at NY is negative. 
+
+
 
 ```{r}
 source("assets_update/data_load.R")
@@ -16,9 +21,7 @@ dat = dat %>% filter(geo_value == "ny")
 
 
 ```{r}
-"
-Code for mixing between unconstrained state level and unconstrained national level
-"
+
 
 gammas = signif(seq(0, 0.0625, length.out = 25), 3)
 alphas = signif(seq(0, 1, length.out = 51))
@@ -706,28 +709,4 @@ oracle_m = lm(GT ~ in_6 + in_13 + in_20 + out_6 + out_13 + out_20, data = ny_tes
 ```
 
 
-
-
-
-
-
-```{r}
-# ny_train_pos = ny_train_feat %>% filter(issue_date == as.Date("2021-06-07")) %>%
-#   filter(geo_value == "ny")
-# ny_train_neg = ny_train_feat %>% filter(issue_date == as.Date("2021-06-22")) %>%
-#   filter(geo_value == "ny")
-# 
-# ny_merged = ny_train_pos %>%
-#   inner_join(ny_train_neg, by = c("geo_value", "time_value"),
-#              suffix = c("_pos", "_neg")) %>%
-#   group_by(time_value) %>%
-#   summarise(pdi_6 = (in_6_pos - in_6_neg) * 100 / in_6_pos,
-#             pdi_13 = (in_13_pos - in_13_neg)* 100 / in_13_pos,
-#             pdi_20 = (in_20_pos - in_20_neg) * 100/ in_20_pos,
-#             pdo_6 = (out_6_pos - out_6_neg) * 100/ out_6_pos,
-#             pdo_13 = (out_13_pos - out_13_neg) * 100/ out_13_pos,
-#             pdo_20 = (out_20_pos - out_20_neg) * 100/ out_20_pos) %>%
-#   filter(time_value >= as.Date("2021-05-01"))
-
-```
 

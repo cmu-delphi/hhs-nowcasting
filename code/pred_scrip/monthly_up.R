@@ -14,18 +14,26 @@ alphas = signif(seq(0, 1, length.out = 51))
 cadence = 30
 offset = 120
 vl = 2
+sf = "relative"
 
 
 
 back_2 = c()
 val_frame = c()
 val_gamma = c()
-
 max_lag = 19
 
 state_model_coef = c()
 national_model_coef = c()
 
+# Level of miscover c. 1 - c gives the desired coverage level. e.g., if you 
+# want 90% coverage, set miscover_lvl=0.1
+miscover_lvl = 0.4 
+
+# State level learning rates. To be initalized after first round of validation
+state_lr_frame = c()
+# Data frame for state level intervals
+state_interval_frame = c()
 
 dump_dates = c(as.Date("2021-04-01"), as.Date("2021-05-01"), as.Date("2021-06-01"), 
                as.Date("2021-07-01"), as.Date("2021-08-01"), as.Date("2021-09-01"),
@@ -36,22 +44,15 @@ dump_dates = dump_dates - 1
 # Iterate through update dates 
 for (window_date in dump_dates) {
   
-  
-  max_date = as.numeric(as.Date("2022-07-31") - window_date) - 1
-  print(max_date)
-  
+  max_date = as.numeric(as.Date("2022-01-31") - window_date) - 1
   
   if (max_date == 0) {
-    
     break
-    
   }
-  
+
 
   for (i in seq(1, min(50, max_date))) {
-    
-    
-    
+  
     # Every day we recieve updated features 
     train_end = window_date - vl * cadence 
     # Prevent intersection with previous test
@@ -68,16 +69,6 @@ for (window_date in dump_dates) {
     # National level val frame 
     national_val_frame = national_produce_fv(gammas, train_end, version)
     
-    if (nrow(state_val_frame) == 0) {
-      
-      break
-      
-    }
-    
-    # Make sure test predictions are out of sample
-    stopifnot(state_val_frame$time_value <= as.Date(test_start, "1970-01-01"))
-    
-    
     # Select FV gamma and retrain
     # Two levels: state and national level
     # No more subsetting: `produce_fv` only produces 2 months of FV data
@@ -87,8 +78,7 @@ for (window_date in dump_dates) {
       mutate(Min = min(MAE)) %>%
       filter(MAE == Min) %>%
       select(geo_value, gamma)
-    
-    
+
     national_gamma = national_val_frame %>%
       group_by(gamma) %>%
       summarise(MAE = mean(abs(.resid))) %>%
@@ -129,12 +119,10 @@ for (window_date in dump_dates) {
 
     national_model_coef = rbind(national_model_coef, c(national_selected_models$coefficients, 
       as.Date(version, "1970-01-01")))
-    
-    
-    
-    
+  
     # Find mixing weights 
-    mixed_val_frame = alpha_fv(alphas, state_val_frame, national_val_frame, state_val_gamma, national_gamma)
+    mixed_val_frame = alpha_fv(alphas, state_val_frame, national_val_frame, 
+      state_val_gamma, national_gamma)
     opt_alpha = mixed_val_frame %>%
       group_by(geo_value, alpha) %>%
       summarise(MAE = mean(.resid)) %>%
@@ -166,15 +154,55 @@ for (window_date in dump_dates) {
       verify(nrow(.) != 0)
     
     national_test = national_test %>%
-      mutate(national_fit = predict(national_selected_models, newdata = .)) %>%
-      verify(nrow(.) != 0)
+    mutate(
+      # Generate predictions with 60% prediction interval
+      preds_60 = {
+        pred_df = as.data.frame(predict(national_selected_models, newdata = national_test, interval = "prediction", level = 0.6))
+        names(pred_df)[names(pred_df) == "lwr"] = "lwr_60"
+        names(pred_df)[names(pred_df) == "upr"] = "upr_60"
+        names(pred_df)[names(pred_df) == "fit"] = "national_fit"
+        pred_df
+      },
+      # Generate predictions with 80% prediction interval
+      preds_80 = {
+        pred_df = as.data.frame(predict(national_selected_models, newdata = national_test, interval = "prediction", level = 0.8))
+        names(pred_df)[names(pred_df) == "lwr"] = "lwr_80"
+        names(pred_df)[names(pred_df) == "upr"] = "upr_80"
+        # No renaming to `state_fit` here as we will discard this fit
+        pred_df
+      }
+    ) %>%
+    unnest(c(preds_60, preds_80)) %>%
+    select(-fit) %>%  # Discarding the duplicate fit from the 80% prediction
+    mutate(resid = abs(national_fit - GT))
     
 
     state_Tested = state_test %>%
-      do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
-      rename(state_fit = .fitted) %>%
-      select(geo_value, time_value, issue_date, state_fit, GT)
-    
+      mutate(
+        preds_60 = map2(model, data, 
+                        ~{
+                          pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.6))
+                          names(pred_df)[names(pred_df) == "lwr"] <- "lwr_60"
+                          names(pred_df)[names(pred_df) == "upr"] <- "upr_60"
+                          names(pred_df)[names(pred_df) == "fit"] <- "state_fit"
+                          pred_df
+                        }),
+        preds_80 = map2(model, data, 
+                        ~{
+                          pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.8))
+                          names(pred_df)[names(pred_df) == "lwr"] <- "lwr_80"
+                          names(pred_df)[names(pred_df) == "upr"] <- "upr_80"
+                          names(pred_df)[names(pred_df) == "fit"] <- "fit_80"
+                          pred_df
+                        })
+      ) %>%
+      select(-model) %>%
+      unnest(cols = c(preds_60, preds_80, data)) %>%
+      select(-fit_80) %>%
+      mutate(
+        resid = abs(state_fit - GT)
+      )
+      
     national_Tested = national_test %>%
       select(geo_value, time_value, issue_date, national_fit)
     
@@ -182,8 +210,7 @@ for (window_date in dump_dates) {
     state_gamma  = state_val_gamma %>%
       rename(state_optimal_gamma = gamma)
     
-    
-    
+
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
       inner_join(opt_alpha, by = "geo_value") %>%
@@ -199,11 +226,8 @@ for (window_date in dump_dates) {
     
   }
   
-  
-  
+
 }
-
-
 
 write.csv(back_2, "../../predictions/bl_versioned_hhs_mixed.csv", row.names = FALSE)
 

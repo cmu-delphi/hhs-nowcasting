@@ -155,18 +155,54 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
       verify(nrow(.) != 0)
     
     national_test = national_test %>%
-      mutate(national_fit = predict(national_selected_models, newdata = .)) %>%
-      verify(nrow(.) != 0)
+    mutate(
+      # Generate predictions with 60% prediction interval
+      preds_60 = {
+        pred_df = as.data.frame(predict(national_selected_models, newdata = national_test, interval = "prediction", level = 0.6))
+        names(pred_df)[names(pred_df) == "lwr"] = "lwr_60"
+        names(pred_df)[names(pred_df) == "upr"] = "upr_60"
+        names(pred_df)[names(pred_df) == "fit"] = "national_fit"
+        pred_df
+      },
+      # Generate predictions with 80% prediction interval
+      preds_80 = {
+        pred_df = as.data.frame(predict(national_selected_models, newdata = national_test, interval = "prediction", level = 0.8))
+        names(pred_df)[names(pred_df) == "lwr"] = "lwr_80"
+        names(pred_df)[names(pred_df) == "upr"] = "upr_80"
+        # No renaming to `state_fit` here as we will discard this fit
+        pred_df
+      }
+    ) %>%
+    unnest(c(preds_60, preds_80)) %>%
+    select(-fit) %>%  # Discarding the duplicate fit from the 80% prediction
+    mutate(resid = abs(national_fit - GT))
     
 
     state_Tested = state_test %>%
-      do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
-      rename(state_fit = .fitted) %>%
-      select(geo_value, time_value, issue_date, state_fit, GT)
-    
-    national_Tested = national_test %>%
-      select(geo_value, time_value, issue_date, national_fit)
-    
+      mutate(
+        preds_60 = map2(model, data, 
+                        ~{
+                          pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.6))
+                          names(pred_df)[names(pred_df) == "lwr"] <- "lwr_60"
+                          names(pred_df)[names(pred_df) == "upr"] <- "upr_60"
+                          names(pred_df)[names(pred_df) == "fit"] <- "state_fit"
+                          pred_df
+                        }),
+        preds_80 = map2(model, data, 
+                        ~{
+                          pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.8))
+                          names(pred_df)[names(pred_df) == "lwr"] <- "lwr_80"
+                          names(pred_df)[names(pred_df) == "upr"] <- "upr_80"
+                          names(pred_df)[names(pred_df) == "fit"] <- "fit_80"
+                          pred_df
+                        })
+      ) %>%
+      select(-model) %>%
+      unnest(cols = c(preds_60, preds_80, data)) %>%
+      select(-fit_80) %>%
+      mutate(
+        resid = abs(state_fit - GT)
+      )
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
       inner_join(opt_alpha, by = "geo_value") %>%
@@ -205,18 +241,55 @@ for (d in seq(omi_start + 1, end_date, by = 1)) {
       inner_join(state_selected_models) %>%
       verify(nrow(.) != 0)
     
-    national_test = national_test %>%
-      mutate(national_fit = predict(national_selected_models, newdata = .)) %>%
-      verify(nrow(.) != 0)
-  
-  
-    state_Tested = state_test %>%
-      do(augment(.$model[[1]], newdata = .$data[[1]])) %>%
-      rename(state_fit = .fitted) %>%
-      select(geo_value, time_value, issue_date, state_fit, GT)
-    
     national_Tested = national_test %>%
-      select(geo_value, time_value, issue_date, national_fit)
+    mutate(
+      # Generate predictions with 60% prediction interval
+      preds_60 = {
+        pred_df = as.data.frame(predict(national_selected_models, newdata = national_test, interval = "prediction", level = 0.6))
+        names(pred_df)[names(pred_df) == "lwr"] = "lwr_60"
+        names(pred_df)[names(pred_df) == "upr"] = "upr_60"
+        names(pred_df)[names(pred_df) == "fit"] = "national_fit"
+        pred_df
+      },
+      # Generate predictions with 80% prediction interval
+      preds_80 = {
+        pred_df = as.data.frame(predict(national_selected_models, newdata = national_test, interval = "prediction", level = 0.8))
+        names(pred_df)[names(pred_df) == "lwr"] = "lwr_80"
+        names(pred_df)[names(pred_df) == "upr"] = "upr_80"
+        # No renaming to `state_fit` here as we will discard this fit
+        pred_df
+      }
+    ) %>%
+    unnest(c(preds_60, preds_80)) %>%
+    select(-fit) %>%  # Discarding the duplicate fit from the 80% prediction
+    mutate(resid = abs(national_fit - GT))
+    
+
+    state_Tested = state_test %>%
+      mutate(
+        preds_60 = map2(model, data, 
+                        ~{
+                          pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.6))
+                          names(pred_df)[names(pred_df) == "lwr"] <- "lwr_60"
+                          names(pred_df)[names(pred_df) == "upr"] <- "upr_60"
+                          names(pred_df)[names(pred_df) == "fit"] <- "state_fit"
+                          pred_df
+                        }),
+        preds_80 = map2(model, data, 
+                        ~{
+                          pred_df <- as.data.frame(predict(.x, newdata = .y, interval = "prediction", level = 0.8))
+                          names(pred_df)[names(pred_df) == "lwr"] <- "lwr_80"
+                          names(pred_df)[names(pred_df) == "upr"] <- "upr_80"
+                          names(pred_df)[names(pred_df) == "fit"] <- "fit_80"
+                          pred_df
+                        })
+      ) %>%
+      select(-model) %>%
+      unnest(cols = c(preds_60, preds_80, data)) %>%
+      select(-fit_80) %>%
+      mutate(
+        resid = abs(state_fit - GT)
+      )
     
     Tested = state_Tested %>%
       inner_join(national_Tested, by = c("geo_value", "time_value", "issue_date")) %>%
