@@ -77,21 +77,6 @@ wei_2_scores = weighted_2 %>%
   select(geo_value, time_value, lower_q, upper_q)
 ```
 
-```{r}
-qt_2_cover = state_QT_2 %>%
-  group_by(geo_value) %>%
-  filter(backcast_lag == 0) %>%
-  summarise(upper_cov = mean(GT < upper),
-            lower_cov = mean(lower < GT),
-            cov = mean(lower < GT & GT < upper))
-
-qt_4_cover = state_QT_4 %>%
-  group_by(geo_value) %>%
-  filter(backcast_lag == 0) %>%
-  summarise(upper_cov = mean(GT < upper),
-            lower_cov = mean(lower < GT))
-
-```
 
 
 
@@ -105,7 +90,6 @@ fills = c("Actual Hospitalizations" = cbPalette[1], "Unweighted" = cbPalette[6],
 cols = c("Nowcasts" = cbPalette[6])
 states = unique(weighted_2$geo_value)
 
-pdf("figs/alpha_0.2.pdf", width=12, height=9)
 
 for (s in states) {
   
@@ -128,12 +112,12 @@ for (s in states) {
     geom_bar(stat = "identity", aes(fill = "Actual Hospitalizations"), alpha = 0.7) +
     geom_line(aes(x = time_value, y = state_fit, color = "Unweighted")) +
     geom_ribbon(aes(x = time_value, ymin = lower, ymax = upper, fill = "Unweighted"), alpha = 0.4) +
-    geom_line(data = quant_state, aes(x = time_value, y = state_fit, color = "QT")) +
-    geom_ribbon(data = quant_state, aes(x = time_value, ymin = lower,
-      ymax = upper, fill = "QT"), alpha = 0.4) +
-    # geom_line(data = wei_state, aes(x = time_value, y = state_fit, color = "Weighted")) +
-    # geom_ribbon(data = wei_state, aes(x = time_value, ymin = lower,
-    #   ymax = upper, fill = "Weighted"), alpha = 0.4) +
+    # geom_line(data = quant_state, aes(x = time_value, y = state_fit, color = "QT")) +
+    # geom_ribbon(data = quant_state, aes(x = time_value, ymin = lower,
+    #   ymax = upper, fill = "QT"), alpha = 0.4) +
+    geom_line(data = wei_state, aes(x = time_value, y = state_fit, color = "Weighted")) +
+    geom_ribbon(data = wei_state, aes(x = time_value, ymin = lower,
+      ymax = upper, fill = "Weighted"), alpha = 0.4) +
     scale_color_manual(name = "", values = fills) +
     scale_fill_manual(name = "", values = fills) +
     scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
@@ -148,7 +132,6 @@ for (s in states) {
   
 }
 
-dev.off()
 ```
 
 
@@ -161,7 +144,7 @@ fills = c("Actual Hospitalizations" = cbPalette[1], "Unweighted" = cbPalette[6],
 cols = c("Nowcasts" = cbPalette[6])
 states = unique(weighted_2$geo_value)
 
-pdf("figs/alpha_0.4.pdf")
+
 for (s in states) {
   
   unwei_state = unweighted_4 %>%
@@ -186,9 +169,9 @@ for (s in states) {
     geom_line(data = quant_state, aes(x = time_value, y = state_fit, color = "QT")) +
     geom_ribbon(data = quant_state, aes(x = time_value, ymin = lower,
       ymax = upper, fill = "QT"), alpha = 0.4) +
-    # geom_line(data = wei_state, aes(x = time_value, y = state_fit, color = "Weighted")) +
-    # geom_ribbon(data = wei_state, aes(x = time_value, ymin = lower, 
-    #   ymax = upper, fill = "Weighted"), alpha = 0.4) +
+    geom_line(data = wei_state, aes(x = time_value, y = state_fit, color = "Weighted")) +
+    geom_ribbon(data = wei_state, aes(x = time_value, ymin = lower, 
+      ymax = upper, fill = "Weighted"), alpha = 0.4) +
     scale_color_manual(name = "", values = fills) +
     scale_fill_manual(name = "", values = fills) +
     scale_x_date(date_breaks = "1 month", expand = c(0.01, 0.05),
@@ -202,7 +185,7 @@ for (s in states) {
   print(p1)
   
 }
-dev.off()
+
 ```
 
 

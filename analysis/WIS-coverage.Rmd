@@ -23,9 +23,6 @@ uspop = covidcast::state_census %>%
 
 ```{r}
 list_intervals = readRDS("../predictions/quanTrack_Baseline.rds")
-linear_interval = vroom("../predictions/bl_versioned_hhs_mixed.csv") %>%
-  select(geo_value, time_value, issue_date, GT, lwr_60, upr_60, lwr_80, upr_80)
-
 
 state_QT = list_intervals[[1]]; unweighted_frame = list_intervals[[2]]; weighted_frame = list_intervals[[3]]
 
@@ -50,15 +47,6 @@ weighted_2 = weighted_frame %>%
   filter(alpha == 0.2)
 weighted_4 = weighted_frame %>%
   filter(alpha == 0.4)
-
-linear_2 = linear_interval %>%
-  select(geo_value, time_value, issue_date, GT, lwr_80, upr_80) %>%
-  mutate(backcast_lag = as.numeric(issue_date - time_value))
-
-linear_4 = linear_interval %>%
-  select(geo_value, time_value, issue_date, GT, lwr_60, upr_60) %>%
-  mutate(backcast_lag = as.numeric(issue_date - time_value))
-
 
 
 ```
@@ -135,28 +123,10 @@ wei_4_is = weighted_4 %>%
             wei_se = sd(IS) / sqrt(50))
 
 
-linear_2_is = linear_2 %>%
-  group_by(geo_value, backcast_lag) %>%
-  filter(backcast_lag <= 10) %>%
-  summarise(IS = mean(interval_score(lwr_80, upr_80, GT, 0.2))) %>%
-  group_by(backcast_lag) %>%
-  summarise(linear_IS = mean(IS),
-            linear_se = sd(IS) / sqrt(50))
-
-linear_4_is = linear_4 %>%
-  group_by(geo_value, backcast_lag) %>%
-  filter(backcast_lag <= 10) %>%
-  summarise(IS = mean(interval_score(lwr_60, upr_60, GT, 0.4))) %>%
-  group_by(backcast_lag) %>%
-  summarise(linear_IS = mean(IS),
-            linear_se = sd(IS) / sqrt(50))
-
-
 
 score_2 = qt_2_is %>%
   inner_join(unwei_2_is, by = c("backcast_lag")) %>%
-  inner_join(wei_2_is, by = c("backcast_lag")) %>%
-  inner_join(linear_2_is, by = c("backcast_lag"))
+  inner_join(wei_2_is, by = c("backcast_lag"))
 
   
 
@@ -164,8 +134,7 @@ score_2 = qt_2_is %>%
 
 score_4 = qt_4_is %>%
   inner_join(unwei_4_is, by = c("backcast_lag")) %>%
-  inner_join(wei_4_is, by = c("backcast_lag")) %>%
-  inner_join(linear_2_is, by = "backcast_lag")
+  inner_join(wei_4_is, by = c("backcast_lag"))
 
 
 ```
@@ -223,24 +192,6 @@ unwei_4_cover = unweighted_4 %>%
             se = sd(cover) / sqrt(50))
 
 
-linear_2_cover = linear_2 %>%
-  group_by(geo_value, backcast_lag) %>%
-  filter(backcast_lag <= 10) %>%
-  summarise(cover = mean(lwr_80 < GT & GT < upr_80)) %>%
-  group_by(backcast_lag) %>%
-  summarise(coverage = mean(cover),
-            se = sd(cover) / sqrt(50))
-
-
-
-linear_4_cover = linear_4 %>%
-  group_by(geo_value, backcast_lag) %>%
-  filter(backcast_lag <= 10) %>%
-  summarise(cover = mean(lwr_60 < GT & GT < upr_60)) %>%
-  group_by(backcast_lag) %>%
-  summarise(coverage = mean(cover),
-            se = sd(cover) / sqrt(50))
-
 ```
 
 
@@ -252,9 +203,6 @@ saveRDS(unwei_2_is, file = "metric/unwei_2_is.rds")
 saveRDS(unwei_4_is, file = "metric/unwei_4_is.rds")
 saveRDS(wei_2_is, file = "metric/wei_2_is.rds")
 saveRDS(wei_4_is, file = "metric/wei_4_is.rds")
-saveRDS(linear_2_is, file = "metric/linear_2_is.rds")
-saveRDS(linear_4_is, file = "metric/linear_4_is.rds")
-
 
 # Save coverage
 saveRDS(qt_2_cover, file = "metric/qt_2_cover.rds")
@@ -263,8 +211,6 @@ saveRDS(unwei_2_cover, file = "metric/unwei_2_cover.rds")
 saveRDS(unwei_4_cover, file = "metric/unwei_4_cover.rds")
 saveRDS(wei_2_cover, file = "metric/wei_2_cover.rds")
 saveRDS(wei_4_cover, file = "metric/wei_4_cover.rds")
-saveRDS(linear_2_cover, file = "metric/linear_2_cover.rds")
-saveRDS(linear_4_cover, file = "metric/linear_4_cover.rds")
 ```
 
 
